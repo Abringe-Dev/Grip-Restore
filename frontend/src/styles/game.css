@@ -1,0 +1,39 @@
+.game-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6) var(--space-5);
+}
+
+.game-card {
+  width: 100%;
+  max-width: 500px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-7) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  text-align: center;
+}
+
+.game-emoji {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.game-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-xl);
+  letter-spacing: -0.05em;
+  color: var(--ink);
+}
+
+.game-sub {
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}

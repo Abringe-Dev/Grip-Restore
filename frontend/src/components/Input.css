@@ -1,0 +1,120 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+}
+
+.field-input-wrap {
+  position: relative;
+  width: 100%;
+  height: var(--field-height);
+  min-height: var(--field-height);
+  background: var(--input-fill);
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition), border-color var(--transition);
+}
+
+.field-input-wrap:focus-within {
+  background: var(--input-fill-focus);
+  border-color: var(--accent);
+}
+
+.field-input-wrap--error {
+  border-color: var(--error);
+  background: var(--error-bg);
+}
+
+.field-icon {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.field-label {
+  position: absolute;
+  left: 51px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: var(--ink);
+  background: transparent;
+  padding: 0;
+  border-radius: 4px;
+  pointer-events: none;
+  transition:
+    top var(--transition),
+    transform var(--transition),
+    font-size var(--transition),
+    color var(--transition),
+    background-color var(--transition),
+    padding var(--transition);
+  z-index: 1;
+}
+
+.field-input {
+  width: 100%;
+  height: var(--field-height);
+  padding: 21px 48px 5px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.field-input:focus {
+  outline: none;
+}
+
+.field-input:focus ~ .field-label,
+.field-input:not(:placeholder-shown) ~ .field-label {
+  top: -9px;
+  transform: translateY(0);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  background: var(--surface);
+  padding: 0 6px;
+}
+
+.field-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--touch-target);
+  height: var(--touch-target);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  z-index: 1;
+}
+
+.field-toggle:hover {
+  color: var(--ink);
+}
+
+.field-msg {
+  font-size: var(--text-2xs);
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+}
+
+.field-msg--error {
+  color: var(--error);
+  font-weight: 500;
+}

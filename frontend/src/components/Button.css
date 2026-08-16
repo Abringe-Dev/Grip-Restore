@@ -1,0 +1,51 @@
+.btn {
+  min-height: var(--touch-target);
+  padding: 0 var(--space-5);
+  border: none;
+  border-radius: var(--radius-lg);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-sm);
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  box-shadow: var(--shadow-btn);
+  transition:
+    background-color var(--transition),
+    transform var(--transition-fast),
+    box-shadow var(--transition);
+}
+
+.btn--full {
+  width: 100%;
+}
+
+.btn--primary {
+  background: var(--btn-bg, var(--primary));
+  color: #F4F8F8;
+}
+
+.btn--primary:hover {
+  background: var(--btn-bg, var(--primary-hover));
+  transform: translateY(-1px);
+}
+
+.btn--primary:active {
+  background: var(--btn-bg, var(--primary-active));
+  transform: translateY(0);
+}
+
+.btn--primary:disabled {
+  background: rgba(22, 125, 127, 0.45);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--accent);
+  box-shadow: none;
+}
+
+.btn--ghost:hover {
+  text-decoration: underline;
+}

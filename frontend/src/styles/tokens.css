@@ -1,0 +1,112 @@
+:root {
+  --bg: #F4F8F8;
+  --surface: rgba(255, 255, 255, 0.9);
+  --primary: #167D7F;
+  --primary-hover: #126A6C;
+  --primary-active: #0F5A5C;
+  --accent: #5B8DEF;
+  --accent-hover: #4A7BDD;
+  --ink: #263238;
+  --ink-soft: rgba(38, 50, 56, 0.72);
+  --input-fill: rgba(38, 50, 56, 0.2);
+  --input-fill-focus: rgba(38, 50, 56, 0.14);
+  --error: #C0392B;
+  --error-bg: rgba(192, 57, 43, 0.1);
+  --success: #2E8B57;
+  --green: #3FAE7A;
+  --purple: #8175D5;
+
+  --glow-teal: 0px 4px 40px 0px rgba(22, 125, 127, 0.5);
+  --glow-blue: 0px 4px 40px 0px rgba(91, 141, 239, 0.4);
+  --glow-purple: 0px 4px 40px 0px rgba(129, 117, 213, 0.4);
+  --glow-green: 0px 4px 40px 0px rgba(63, 174, 122, 0.4);
+
+  --font-display: 'Plus Jakarta Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Inter', 'Segoe UI', system-ui, sans-serif;
+
+  --text-2xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.5rem;
+  --text-xl: 2rem;
+  --text-2xl: 2.5rem;
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 25px;
+
+  --shadow-card: 0px 0px 25px 0px rgba(0, 0, 0, 0.15);
+  --shadow-btn: inset 0px 0px 25px 0px rgba(0, 0, 0, 0.25);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --touch-target: 44px;
+  --field-height: 56px;
+  --transition-fast: 150ms ease;
+  --transition: 220ms ease;
+
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100vh;
+}
+
+body {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+button,
+input {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

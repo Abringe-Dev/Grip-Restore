@@ -1,0 +1,115 @@
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg);
+  border-bottom: 1px solid rgba(38, 50, 56, 0.08);
+}
+
+.navbar-inner {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.navbar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  text-decoration: none;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+}
+
+.navbar-brand-name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-md);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.navbar-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.navbar-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.navbar-link {
+  min-height: var(--touch-target);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-4);
+  font-weight: 500;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  transition: color var(--transition), background-color var(--transition);
+}
+
+.navbar-link:hover {
+  color: var(--ink);
+  background: rgba(22, 125, 127, 0.08);
+}
+
+.navbar-link.is-active {
+  color: var(--primary);
+  background: rgba(22, 125, 127, 0.12);
+  font-weight: 600;
+}
+
+.navbar-logout {
+  min-height: var(--touch-target);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  font-weight: 500;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color var(--transition), background-color var(--transition);
+}
+
+.navbar-logout:hover {
+  color: var(--error);
+  background: var(--error-bg);
+}
+
+@media (max-width: 640px) {
+  .navbar-inner {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .navbar-brand-name {
+    display: none;
+  }
+
+  .navbar-nav {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .navbar-logout {
+    margin-left: auto;
+  }
+}

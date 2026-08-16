@@ -1,0 +1,137 @@
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-6) var(--space-5);
+  position: relative;
+}
+
+.auth-brand {
+  position: absolute;
+  top: var(--space-5);
+  left: var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.auth-brand-logo {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+}
+
+.auth-brand-name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-lg);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.auth-hero {
+  text-align: center;
+  margin-top: clamp(56px, 8vh, 88px);
+  margin-bottom: var(--space-6);
+}
+
+.auth-hero-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-2xl);
+  letter-spacing: -0.05em;
+  color: var(--ink);
+}
+
+.auth-hero-eyebrow {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-sm);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin-top: var(--space-2);
+}
+
+.auth-hero-sub {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+  margin-top: var(--space-3);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 500px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.auth-card-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-xl);
+  letter-spacing: -0.05em;
+  color: var(--ink);
+  text-align: center;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.auth-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.auth-link {
+  color: var(--accent);
+  font-weight: 500;
+  font-size: var(--text-sm);
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.auth-link:hover {
+  text-decoration: underline;
+}
+
+.auth-switch {
+  text-align: center;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: var(--ink);
+}
+
+.auth-switch a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-switch a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .auth-brand {
+    position: static;
+    margin-bottom: var(--space-2);
+  }
+}

@@ -1,0 +1,88 @@
+.webcam-card {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  height: 400px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(38, 50, 56, 0.08), rgba(38, 50, 56, 0.16));
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.webcam-card--teal {
+  box-shadow: var(--glow-teal);
+}
+
+.webcam-card--blue {
+  box-shadow: var(--glow-blue);
+}
+
+.webcam-card--purple {
+  box-shadow: var(--glow-purple);
+}
+
+.webcam-card--green {
+  box-shadow: var(--glow-green);
+}
+
+.webcam-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.webcam-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  text-align: center;
+  padding: var(--space-5);
+}
+
+.webcam-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid var(--input-fill);
+  border-top-color: var(--primary);
+  animation: webcam-spin 0.8s linear infinite;
+}
+
+@keyframes webcam-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.webcam-message {
+  gap: var(--space-4);
+}
+
+.webcam-retry {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--primary);
+  background: rgba(22, 125, 127, 0.12);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  transition: background-color var(--transition);
+}
+
+.webcam-retry:hover {
+  background: rgba(22, 125, 127, 0.2);
+}
+
+@media (max-width: 640px) {
+  .webcam-card {
+    height: 280px;
+  }
+}

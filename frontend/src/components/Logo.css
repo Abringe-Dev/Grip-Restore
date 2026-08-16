@@ -1,0 +1,18 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.logo-img {
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+
+.logo-name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-lg);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}

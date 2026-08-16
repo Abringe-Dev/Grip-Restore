@@ -1,0 +1,40 @@
+.setup-main,
+.calibration-main {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-5) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  text-align: center;
+}
+
+.setup-text,
+.calibration-text {
+  max-width: 620px;
+}
+
+.setup-title,
+.calibration-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-2xl);
+  letter-spacing: -0.05em;
+  color: var(--ink);
+}
+
+.setup-sub,
+.calibration-sub {
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.setup-hint {
+  font-size: var(--text-sm);
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+}
