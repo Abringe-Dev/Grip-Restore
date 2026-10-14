@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useHandTracking } from '../context/useHandTracking'
 import './WebcamCard.css'
 
 function CameraIcon() {
@@ -10,8 +11,40 @@ function CameraIcon() {
   )
 }
 
+function TrackingBadge() {
+  const { trackingStatus, handsDetected, fps, startTracking } = useHandTracking()
+
+  if (trackingStatus === 'active') {
+    return (
+      <div className="webcam-debug-badge" aria-live="off">
+        {fps} fps &middot; {handsDetected ? '1 hand' : 'no hand'}
+      </div>
+    )
+  }
+  if (trackingStatus === 'loading') {
+    return (
+      <div className="webcam-debug-badge" aria-live="off">
+        loading hand tracking&hellip;
+      </div>
+    )
+  }
+  if (trackingStatus === 'error') {
+    return (
+      <div className="webcam-debug-badge webcam-debug-badge--warn" aria-live="off">
+        tracking unavailable
+        <button type="button" className="webcam-badge-retry" onClick={startTracking}>
+          retry
+        </button>
+      </div>
+    )
+  }
+  return null
+}
+
 export default function WebcamCard({ glow = 'teal', status = 'idle', stream = null, onRetry }) {
   const videoRef = useRef(null)
+  const canvasRef = useRef(null)
+  const { registerOverlay, unregisterOverlay } = useHandTracking()
 
   useEffect(() => {
     const video = videoRef.current
@@ -21,11 +54,22 @@ export default function WebcamCard({ glow = 'teal', status = 'idle', stream = nu
     }
   }, [stream])
 
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || status !== 'active' || !stream) return
+    registerOverlay(canvas)
+    return () => unregisterOverlay(canvas)
+  }, [registerOverlay, unregisterOverlay, status, stream])
+
   let content
 
   if (status === 'active' && stream) {
     content = (
-      <video ref={videoRef} className="webcam-video" autoPlay playsInline muted aria-label="Your camera preview" />
+      <>
+        <video ref={videoRef} className="webcam-video" autoPlay playsInline muted aria-label="Your camera preview" />
+        <canvas ref={canvasRef} className="webcam-overlay" aria-hidden="true" />
+        <TrackingBadge />
+      </>
     )
   } else if (status === 'requesting') {
     content = (

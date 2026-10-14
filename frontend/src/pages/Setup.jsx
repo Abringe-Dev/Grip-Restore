@@ -1,17 +1,25 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import WebcamCard from '../components/WebcamCard'
 import { useWebcam } from '../context/useWebcam'
+import { useHandTracking } from '../context/useHandTracking'
 import './../styles/setup.css'
 
 export default function Setup() {
   const navigate = useNavigate()
   const { status, stream, start } = useWebcam()
+  const { startTracking } = useHandTracking()
 
   useEffect(() => {
     start()
-  }, [start])
+    startTracking()
+  }, [start, startTracking])
+
+  const handleRetry = useCallback(() => {
+    start()
+    startTracking()
+  }, [start, startTracking])
 
   const ready = status === 'active'
 
@@ -24,7 +32,7 @@ export default function Setup() {
           the exercise.
         </p>
       </div>
-      <WebcamCard glow="teal" status={status} stream={stream} onRetry={start} />
+      <WebcamCard glow="teal" status={status} stream={stream} onRetry={handleRetry} />
       <p className="setup-hint">
         {ready ? 'Click proceed to continue' : 'Allow camera access to continue'}
       </p>

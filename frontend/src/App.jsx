@@ -4,6 +4,7 @@ import PageTransition from './components/PageTransition'
 import RequireAuth from './components/RequireAuth'
 import AppLayout from './layouts/AppLayout'
 import { WebcamProvider } from './context/WebcamProvider'
+import { HandTrackingProvider } from './context/HandTrackingProvider'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
@@ -104,7 +105,9 @@ function App() {
     <BrowserRouter>
       <MotionConfig reducedMotion="user">
         <WebcamProvider>
-          <AnimatedRoutes />
+          <HandTrackingProvider>
+            <AnimatedRoutes />
+          </HandTrackingProvider>
         </WebcamProvider>
       </MotionConfig>
     </BrowserRouter>

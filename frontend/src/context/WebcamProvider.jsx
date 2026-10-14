@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { WebcamContext } from './webcamContext'
-
-const SESSION_PATHS = ['/setup', '/calibration', '/game']
+import { SESSION_PATHS } from '../constants/sessionPaths'
 
 export function WebcamProvider({ children }) {
   const location = useLocation()

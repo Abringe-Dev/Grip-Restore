@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import WebcamCard from '../components/WebcamCard'
 import GestureCard from '../components/GestureCard'
 import { useWebcam } from '../context/useWebcam'
+import { useHandTracking } from '../context/useHandTracking'
 import './../styles/calibration.css'
 
 const steps = [
@@ -15,8 +16,14 @@ const steps = [
 export default function Calibration() {
   const navigate = useNavigate()
   const { status, stream, start } = useWebcam()
+  const { startTracking } = useHandTracking()
   const [step, setStep] = useState(0)
   const current = steps[step]
+
+  const handleRetry = useCallback(() => {
+    start()
+    startTracking()
+  }, [start, startTracking])
 
   const handleNext = () => {
     if (step < steps.length - 1) {
@@ -36,7 +43,7 @@ export default function Calibration() {
       </div>
 
       <div className="calibration-stage">
-        <WebcamCard glow={current.glow} status={status} stream={stream} onRetry={start} />
+        <WebcamCard glow={current.glow} status={status} stream={stream} onRetry={handleRetry} />
         <GestureCard emoji={current.emoji} label={current.label} color={current.color} />
       </div>
 
