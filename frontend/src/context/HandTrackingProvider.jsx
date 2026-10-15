@@ -5,8 +5,10 @@ import { useWebcam } from './useWebcam'
 import { SESSION_PATHS } from '../constants/sessionPaths'
 import { createHandLandmarker, detectHands } from '../vision/handLandmarker'
 import { drawHandSkeleton } from '../vision/drawSkeleton'
+import { classifyGesture, PINCH_ENTER_RATIO, PINCH_EXIT_RATIO } from '../vision/classifyGesture'
 
 const FPS_WINDOW_MS = 500
+const GESTURE_CONFIRM_FRAMES = 3
 
 function clearCanvas(canvas) {
   const ctx = canvas.getContext('2d')
@@ -20,6 +22,8 @@ export function HandTrackingProvider({ children }) {
   const [handsDetected, setHandsDetected] = useState(false)
   const [fps, setFps] = useState(0)
   const [error, setError] = useState(null)
+  const [currentGesture, setCurrentGesture] = useState('none')
+  const [gestureConfidence, setGestureConfidence] = useState(0.5)
 
   const landmarkerRef = useRef(null)
   const connectionsRef = useRef([])
@@ -27,12 +31,27 @@ export function HandTrackingProvider({ children }) {
   const rafRef = useRef(0)
   const trackingRef = useRef(false)
   const landmarksRef = useRef([])
+  const gestureRef = useRef({ gesture: 'none', confidence: 0.5 })
+  const stableGestureRef = useRef('none')
+  const stableConfidenceRef = useRef(0.5)
+  const candidateRef = useRef('none')
+  const candidateCountRef = useRef(0)
+  const pinchActiveRef = useRef(false)
   const canvasesRef = useRef(new Set())
   const hiddenVideoRef = useRef(null)
   const cursorRef = useRef({ lastVideoTime: -1, lastTimestamp: 0 })
   const framesRef = useRef(0)
   const fpsTimeRef = useRef(0)
   const handsRef = useRef(false)
+
+  const clearGestureRefs = () => {
+    gestureRef.current = { gesture: 'none', confidence: 0.5 }
+    stableGestureRef.current = 'none'
+    stableConfidenceRef.current = 0.5
+    candidateRef.current = 'none'
+    candidateCountRef.current = 0
+    pinchActiveRef.current = false
+  }
 
   const stopTracking = useCallback(() => {
     trackingRef.current = false
@@ -42,11 +61,14 @@ export function HandTrackingProvider({ children }) {
     }
     landmarksRef.current = []
     handsRef.current = false
+    clearGestureRefs()
     canvasesRef.current.forEach(clearCanvas)
     queueMicrotask(() => {
       setTrackingStatus('idle')
       setHandsDetected(false)
       setFps(0)
+      setCurrentGesture('none')
+      setGestureConfidence(0.5)
     })
   }, [])
 
@@ -60,17 +82,45 @@ export function HandTrackingProvider({ children }) {
         const video = hiddenVideoRef.current
         if (landmarker && video) {
           let hands = []
+          let counted = false
           try {
             const result = detectHands(landmarker, video, cursorRef.current)
             if (result) {
               framesRef.current += 1
+              counted = true
               hands = result.landmarks ?? []
             }
           } catch {
             framesRef.current += 1
+            counted = true
             hands = []
           }
           landmarksRef.current = hands
+          if (counted) {
+            const threshold = pinchActiveRef.current ? PINCH_EXIT_RATIO : PINCH_ENTER_RATIO
+            const raw = hands.length > 0
+              ? classifyGesture(hands[0], threshold)
+              : { gesture: 'none', confidence: 0.5 }
+            pinchActiveRef.current = raw.gesture === 'pinch'
+            gestureRef.current = raw
+            if (raw.gesture === candidateRef.current) {
+              candidateCountRef.current += 1
+            } else {
+              candidateRef.current = raw.gesture
+              candidateCountRef.current = 1
+            }
+            if (candidateCountRef.current >= GESTURE_CONFIRM_FRAMES) {
+              if (raw.gesture !== stableGestureRef.current) {
+                stableGestureRef.current = raw.gesture
+                stableConfidenceRef.current = raw.confidence
+                setCurrentGesture(raw.gesture)
+                setGestureConfidence(raw.confidence)
+              } else if (raw.confidence !== stableConfidenceRef.current) {
+                stableConfidenceRef.current = raw.confidence
+                setGestureConfidence(raw.confidence)
+              }
+            }
+          }
 
           const detected = hands.length > 0
           if (detected !== handsRef.current) {
@@ -125,6 +175,9 @@ export function HandTrackingProvider({ children }) {
       setTrackingStatus('active')
       setError(null)
       landmarksRef.current = []
+      clearGestureRefs()
+      setCurrentGesture('none')
+      setGestureConfidence(0.5)
       framesRef.current = 0
       fpsTimeRef.current = performance.now()
       if (!rafRef.current) {
@@ -148,6 +201,9 @@ export function HandTrackingProvider({ children }) {
         landmarkerRef.current = landmarker
         connectionsRef.current = HandLandmarker.HAND_CONNECTIONS ?? []
         landmarksRef.current = []
+        clearGestureRefs()
+        setCurrentGesture('none')
+        setGestureConfidence(0.5)
         framesRef.current = 0
         fpsTimeRef.current = performance.now()
         setTrackingStatus('active')
@@ -215,7 +271,10 @@ export function HandTrackingProvider({ children }) {
 
   return (
     <HandTrackingContext.Provider
-      value={{ trackingStatus, handsDetected, fps, error, landmarksRef, startTracking, stopTracking, registerOverlay, unregisterOverlay }}
+      // Consumer guidance: bind UI to currentGesture/gestureConfidence
+      // (3-frame confirmed, flicker-free). gestureRef is raw per-frame output
+      // for low-latency readers only (e.g. hold-timing in Feature 3).
+      value={{ trackingStatus, handsDetected, fps, error, landmarksRef, gestureRef, currentGesture, gestureConfidence, startTracking, stopTracking, registerOverlay, unregisterOverlay }}
     >
       <video
         ref={hiddenVideoRef}

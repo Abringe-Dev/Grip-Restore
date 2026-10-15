@@ -12,12 +12,13 @@ function CameraIcon() {
 }
 
 function TrackingBadge() {
-  const { trackingStatus, handsDetected, fps, startTracking } = useHandTracking()
+  const { trackingStatus, handsDetected, fps, currentGesture, gestureConfidence, startTracking } = useHandTracking()
 
   if (trackingStatus === 'active') {
+    const label = handsDetected ? `${currentGesture} ${gestureConfidence.toFixed(2)}` : 'no hand'
     return (
       <div className="webcam-debug-badge" aria-live="off">
-        {fps} fps &middot; {handsDetected ? '1 hand' : 'no hand'}
+        {fps} fps &middot; {label}
       </div>
     )
   }
