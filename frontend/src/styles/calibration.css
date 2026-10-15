@@ -23,6 +23,28 @@
   font-size: var(--text-sm);
   letter-spacing: 0.05em;
   color: var(--ink-soft);
+  min-height: 1.5em;
+}
+
+.calibration-hold.is-nice {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.calibration-holdbar {
+  width: 100%;
+  max-width: 420px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--input-fill);
+  overflow: hidden;
+}
+
+.calibration-holdbar-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  transition: width 100ms linear;
 }
 
 .calibration-progress {
