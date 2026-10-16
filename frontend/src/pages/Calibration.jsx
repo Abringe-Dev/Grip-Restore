@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import Button from '../components/Button'
 import WebcamCard from '../components/WebcamCard'
 import GestureCard from '../components/GestureCard'
@@ -132,6 +132,7 @@ function CalibrationStep({ gestureKey, instruction, color, stepIndex, stepTotal,
 
 export default function Calibration() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { status, stream, start } = useWebcam()
   const { startTracking } = useHandTracking()
   const [step, setStep] = useState(0)
@@ -148,9 +149,11 @@ export default function Calibration() {
     if (step < steps.length - 1) {
       setStep((s) => s + 1)
     } else {
-      navigate('/game', { state: { calibration: [...resultsRef.current] } })
+      navigate('/game', {
+        state: { ...(location.state ?? {}), calibration: [...resultsRef.current] },
+      })
     }
-  }, [step, navigate])
+  }, [step, navigate, location.state])
 
   return (
     <main className="calibration-main">

@@ -58,7 +58,7 @@ export default function StartSession() {
       </section>
 
       <div className="start-action">
-        <Button onClick={() => navigate('/setup')}>Begin Session</Button>
+        <Button onClick={() => navigate('/setup', { state: { durationMin: selected } })}>Begin Session</Button>
       </div>
     </main>
   )
