@@ -7,22 +7,6 @@ const HISTORY_LIMIT = 6
 
 export const SESSIONS_GOAL = 8
 
-// Seed targets (reproduce the original demo display exactly).
-const SEED_WEEK_COUNTS = [2, 3, 3, 4, 5, 4, 5]
-const SEED_WEEK_ACCURACY = [62, 68, 71, 75, 79, 83, 87]
-const SEED_GESTURES = ['Open Palm', 'Fist', 'Pinch']
-const SEED_DURATIONS = [10, 5]
-// Weekday slots (Mon-first offsets) used when topping up older weeks.
-// Spread out to avoid manufacturing long streaks outside the backbone.
-const TOPUP_SLOTS = [0, 2, 4, 6, 1, 3, 5]
-// Same-day times used only to top up the CURRENT week. Guarantee is
-// day-granular: no session is ever dated on a future calendar day (intraday
-// clock times are fixed decorative values, so a same-day time may read later
-// than first-visit time — harmless, since every consumer buckets, streaks,
-// sorts, and labels by calendar day).
-const TOPUP_TODAY_TIMES = [[8, 5], [10, 15], [12, 30], [15, 45], [17, 20]]
-const STREAK_BACKBONE_DAYS = 6
-
 export function sessionsKey(userId) {
   return SESSIONS_PREFIX + normalizeEmail(userId)
 }
@@ -74,22 +58,15 @@ function writeRaw(key, value) {
 export function loadSessions(userId) {
   const id = normalizeEmail(userId)
   if (!id) return []
-  const key = sessionsKey(id)
-  const raw = readRaw(key)
-  if (raw == null) {
-    const seeded = seedSessions()
-    writeRaw(key, JSON.stringify(seeded))
-    return seeded
-  }
+  const raw = readRaw(sessionsKey(id))
+  if (raw == null) return []
   try {
     const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) throw new Error('bad shape')
-    if (!parsed.every(isValidSession)) throw new Error('bad items')
+    if (!Array.isArray(parsed)) return []
+    if (!parsed.every(isValidSession)) return []
     return parsed
   } catch {
-    const seeded = seedSessions()
-    writeRaw(key, JSON.stringify(seeded))
-    return seeded
+    return []
   }
 }
 
@@ -144,92 +121,6 @@ function bucketSessionsByWeek(sessions, now) {
     if (idx >= 0) buckets[idx].sessions.push(s)
   })
   return buckets
-}
-
-function dayKey(date) {
-  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
-}
-
-// --- Seed (relative-to-today demo data, exact display targets) ---
-
-function atDay(base, back, hour, minute) {
-  const d = new Date(base)
-  d.setHours(0, 0, 0, 0)
-  d.setDate(d.getDate() - back)
-  d.setHours(hour, minute, 0, 0)
-  return d
-}
-
-function spreadAccuracy(target, position, count) {
-  if (count >= 2) {
-    if (position === 0) return target + 3
-    if (position === 1) return target - 3
-  }
-  return target
-}
-
-export function seedSessions(now = new Date()) {
-  const dates = []
-  for (let back = 0; back < STREAK_BACKBONE_DAYS; back += 1) {
-    dates.push(atDay(now, back, 19, 10))
-  }
-  const occupied = new Set(dates.map((d) => dayKey(d)))
-  const excluded = dayKey(atDay(now, STREAK_BACKBONE_DAYS, 12, 0))
-  const todayStart = atDay(now, 0, 0, 0)
-  const counts = new Array(WEEKS_SHOWN).fill(0)
-  dates.forEach((d) => {
-    const i = weekIndexOf(d, now)
-    if (i >= 0) counts[i] += 1
-  })
-  for (let w = 0; w < WEEKS_SHOWN; w += 1) {
-    const monday = new Date(startOfISOWeek(now).getTime() - (WEEKS_SHOWN - 1 - w) * 7 * DAY_MS)
-    for (const slot of TOPUP_SLOTS) {
-      if (counts[w] >= SEED_WEEK_COUNTS[w]) break
-      const d = new Date(monday)
-      d.setDate(d.getDate() + slot)
-      d.setHours(10, 0, 0, 0)
-      if (d > now) continue
-      const key = dayKey(d)
-      if (key === excluded || occupied.has(key)) continue
-      occupied.add(key)
-      dates.push(d)
-      counts[w] += 1
-    }
-    if (w === WEEKS_SHOWN - 1) {
-      for (const [hour, minute] of TOPUP_TODAY_TIMES) {
-        if (counts[w] >= SEED_WEEK_COUNTS[w]) break
-        const d = new Date(todayStart)
-        d.setHours(hour, minute, 0, 0)
-        dates.push(d)
-        counts[w] += 1
-      }
-    }
-  }
-  const byWeek = Array.from({ length: WEEKS_SHOWN }, () => [])
-  dates.forEach((d) => {
-    const i = weekIndexOf(d, now)
-    if (i >= 0) byWeek[i].push(d)
-  })
-  const sessions = []
-  let order = 0
-  byWeek.forEach((weekDates, w) => {
-    weekDates
-      .sort((a, b) => b - a)
-      .forEach((d, position) => {
-        sessions.push({
-          id: `seed-${w}-${position}`,
-          dateISO: d.toISOString(),
-          durationMin: SEED_DURATIONS[order % SEED_DURATIONS.length],
-          gesture: SEED_GESTURES[order % SEED_GESTURES.length],
-          gestures: ['Pinch', 'Fist', 'Open Palm'],
-          accuracy: spreadAccuracy(SEED_WEEK_ACCURACY[w], position, weekDates.length),
-          calibration: null,
-        })
-        order += 1
-      })
-  })
-  sessions.sort((a, b) => Date.parse(b.dateISO) - Date.parse(a.dateISO))
-  return sessions
 }
 
 // --- Derivations (pure; `now` injectable for tests) ---
