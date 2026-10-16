@@ -1,24 +1,41 @@
 import { useState, useCallback } from 'react'
 import { AuthContext } from './authContext'
+import { normalizeEmail, lookupProfile, emailPrefix } from '../data/userStore'
 
-const STORAGE_KEY = 'grip-restore-auth'
+const STORAGE_KEY = 'grip-restore-auth-v1'
+
+function readSession() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return { isAuthenticated: false, userId: null, userName: '' }
+    const parsed = JSON.parse(raw)
+    const userId = normalizeEmail(parsed && parsed.email)
+    if (!userId) return { isAuthenticated: false, userId: null, userName: '' }
+    return {
+      isAuthenticated: true,
+      userId,
+      userName: parsed && typeof parsed.name === 'string' ? parsed.name : '',
+    }
+  } catch {
+    return { isAuthenticated: false, userId: null, userName: '' }
+  }
+}
 
 export function AuthProvider({ children }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEY) === 'true'
-    } catch {
-      return false
-    }
-  })
+  const [session, setSession] = useState(readSession)
 
-  const login = useCallback(() => {
+  const login = useCallback((email, name) => {
+    const userId = normalizeEmail(email)
+    if (!userId) return
+    const profile = lookupProfile(userId)
+    const cleanName = String(name ?? '').trim()
+    const userName = cleanName || (profile && profile.name) || emailPrefix(userId)
     try {
-      localStorage.setItem(STORAGE_KEY, 'true')
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ email: userId, name: userName }))
     } catch {
       /* storage unavailable */
     }
-    setIsAuthenticated(true)
+    setSession({ isAuthenticated: true, userId, userName })
   }, [])
 
   const logout = useCallback(() => {
@@ -27,11 +44,11 @@ export function AuthProvider({ children }) {
     } catch {
       /* storage unavailable */
     }
-    setIsAuthenticated(false)
+    setSession({ isAuthenticated: false, userId: null, userName: '' })
   }, [])
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ ...session, login, logout }}>
       {children}
     </AuthContext.Provider>
   )

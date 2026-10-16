@@ -1,7 +1,10 @@
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import StatCard from '../components/StatCard'
 import GestureCard from '../components/GestureCard'
+import { useAuth } from '../context/useAuth'
+import { loadSessions, getWeeklySummary } from '../data/sessionStore'
 import './../styles/dashboard.css'
 
 const gestures = [
@@ -12,11 +15,14 @@ const gestures = [
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { userId, userName } = useAuth()
+  const summary = useMemo(() => getWeeklySummary(loadSessions(userId)), [userId])
+  const remaining = Math.max(0, summary.sessionsGoal - summary.sessionsCompleted)
 
   return (
     <main className="dashboard-main">
       <section className="dashboard-hero">
-        <h1 className="dashboard-title">Welcome back!</h1>
+        <h1 className="dashboard-title">Welcome back{userName ? `, ${userName}` : ''}!</h1>
         <p className="dashboard-sub">
           You&rsquo;re doing great &mdash; let&rsquo;s keep your hands moving.
         </p>
@@ -25,19 +31,21 @@ export default function Dashboard() {
       <section className="stats-grid" aria-label="Your weekly summary">
         <StatCard
           label="Weekly Accuracy"
-          value="87%"
-          caption="Up 4% from last week"
+          value={`${summary.accuracy}%`}
+          caption={summary.accuracyChange >= 0
+            ? `Up ${summary.accuracyChange}% from last week`
+            : `Down ${-summary.accuracyChange}% from last week`}
           tone="blue"
         />
         <StatCard
           label="Sessions Completed"
-          value="5"
-          caption="3 more to hit your weekly goal"
+          value={`${summary.sessionsCompleted}`}
+          caption={remaining > 0 ? `${remaining} more to hit your weekly goal` : 'Goal reached — amazing!'}
           tone="green"
         />
         <StatCard
           label="Best Streak"
-          value="6 days"
+          value={`${summary.bestStreak} days`}
           caption="You&rsquo;re on a roll &mdash; keep it going!"
           tone="purple"
         />

@@ -39,7 +39,7 @@ export default function Login() {
 
     setErrors(next)
     if (Object.keys(next).length === 0) {
-      login()
+      login(email)
       navigate('/dashboard')
     }
   }

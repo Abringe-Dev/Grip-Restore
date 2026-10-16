@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { upsertProfile } from '../data/userStore'
 import AuthLayout from '../components/AuthLayout'
 import Button from '../components/Button'
 import Input from '../components/Input'
@@ -52,7 +53,8 @@ export default function Register() {
 
     setErrors(next)
     if (Object.keys(next).length === 0) {
-      login()
+      upsertProfile(email, name)
+      login(email, name)
       navigate('/dashboard')
     }
   }
