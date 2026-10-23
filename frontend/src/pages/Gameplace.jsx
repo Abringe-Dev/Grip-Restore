@@ -5,7 +5,7 @@ import WebcamCard from '../components/WebcamCard'
 import { useWebcam } from '../context/useWebcam'
 import { useHandTracking } from '../context/useHandTracking'
 import { useAuth } from '../context/useAuth'
-import { saveSession } from '../data/sessionStore'
+import { createSession } from '../api/sessions'
 import {
   DEFAULT_DURATION_MIN,
   GESTURES,
@@ -42,6 +42,7 @@ function FallingBoard({
   summary,
   difficulty,
   durationMin,
+  saveError,
 }) {
   const bandTop = HIT_LINE_PROGRESS * 100 - bandPercent / 2
 
@@ -129,6 +130,9 @@ function FallingBoard({
             </div>
           </div>
           <p className="game-sub">{difficulty.label} · {durationMin} min session</p>
+          {saveError && (
+            <p className="game-sub" role="alert">{saveError}</p>
+          )}
         </div>
       )}
     </div>
@@ -158,6 +162,7 @@ export default function Gameplace() {
   const [schedule, setSchedule] = useState([])
   const [resolvedNotes, setResolvedNotes] = useState({})
   const [feedback, setFeedback] = useState(null)
+  const [saveError, setSaveError] = useState('')
 
   const endedRef = useRef(false)
   const playingStartedRef = useRef(false)
@@ -209,10 +214,11 @@ export default function Gameplace() {
     }, FEEDBACK_MS)
   }
 
-  const saveCurrentSession = (sessionDurationMin) => {
+  const saveCurrentSession = async (sessionDurationMin) => {
     const summary = summarizeGame(hitsRef.current, missesRef.current)
-    if (userId && summary.attempted > 0) {
-      saveSession(userId, {
+    if (!userId || summary.attempted === 0) return true
+    try {
+      await createSession({
         durationMin: sessionDurationMin,
         gesture: 'Mixed',
         gestures: GESTURE_LABELS,
@@ -222,6 +228,10 @@ export default function Gameplace() {
         misses: summary.misses,
         calibration,
       })
+      return true
+    } catch (err) {
+      setSaveError(err.message)
+      return false
     }
   }
 
@@ -248,7 +258,7 @@ export default function Gameplace() {
   const finishSession = () => {
     if (endedRef.current) return
     endedRef.current = true
-    saveCurrentSession(durationMin)
+    void saveCurrentSession(durationMin)
     setPhase('done')
     setFeedback(null)
     playFinish()
@@ -339,10 +349,10 @@ export default function Gameplace() {
     return () => clearInterval(id)
   }, [canPlay, phase])
 
-  const handleQuit = () => {
+  const handleQuit = async () => {
     if (endedRef.current) return
     endedRef.current = true
-    saveCurrentSession(elapsedToDurationMin(elapsedRef.current))
+    await saveCurrentSession(elapsedToDurationMin(elapsedRef.current))
     navigate('/history')
   }
 
@@ -432,6 +442,7 @@ export default function Gameplace() {
             summary={summary}
             difficulty={difficulty}
             durationMin={durationMin}
+            saveError={saveError}
           />
           {phase === 'playing' && canPlay && !handsDetected && (
             <p className="game-hands-hint">Show your hand in the camera</p>

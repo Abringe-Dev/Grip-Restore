@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { resendVerification } from '../api/auth'
 import AuthLayout from '../components/AuthLayout'
 import Button from '../components/Button'
 import Input from '../components/Input'
@@ -20,13 +21,20 @@ const passwordIcon = (
   </svg>
 )
 
+const EMAIL_PATTERN = /^\S+@\S+\.\S+$/
+
 export default function Login() {
   const navigate = useNavigate()
   const { login } = useAuth()
   const [remember, setRemember] = useState(false)
   const [errors, setErrors] = useState({})
+  const [formError, setFormError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [pendingEmail, setPendingEmail] = useState('')
+  const [needsVerify, setNeedsVerify] = useState(false)
+  const [notice, setNotice] = useState(null)
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
     const email = String(data.get('email') || '').trim()
@@ -34,13 +42,39 @@ export default function Login() {
 
     const next = {}
     if (!email) next.email = 'Please enter your email.'
-    else if (!/^\S+@\S+\.\S+$/.test(email)) next.email = 'That email doesn\u2019t look right \u2014 try again.'
+    else if (!EMAIL_PATTERN.test(email)) next.email = 'That email doesn’t look right — try again.'
     if (!password) next.password = 'Please enter your password.'
 
     setErrors(next)
-    if (Object.keys(next).length === 0) {
-      login(email)
+    setFormError('')
+    setNeedsVerify(false)
+    setNotice(null)
+    if (Object.keys(next).length > 0) return
+
+    setPendingEmail(email)
+    setBusy(true)
+    try {
+      await login(email, password)
       navigate('/dashboard')
+    } catch (err) {
+      setFormError(err.message)
+      if (err.code === 'EMAIL_NOT_VERIFIED') setNeedsVerify(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleResend() {
+    if (!pendingEmail) return
+    setBusy(true)
+    setNotice(null)
+    try {
+      const data = await resendVerification(pendingEmail)
+      setNotice(data)
+    } catch (err) {
+      setFormError(err.message)
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -79,7 +113,37 @@ export default function Login() {
             Forgot password?
           </Link>
         </div>
-        <Button type="submit">Log in</Button>
+
+        {formError && (
+          <p className="auth-notice auth-notice--error" role="alert">
+            {formError}
+          </p>
+        )}
+
+        {notice && (
+          <div className="auth-notice" role="status">
+            <p>{notice.message}</p>
+            {notice.devVerifyUrl && (
+              <p>
+                <a className="auth-link" href={notice.devVerifyUrl}>
+                  Open verification link (dev)
+                </a>
+              </p>
+            )}
+          </div>
+        )}
+
+        {needsVerify && (
+          <div className="auth-actions">
+            <Button type="button" variant="ghost" fullWidth={false} onClick={handleResend} disabled={busy}>
+              Resend verification email
+            </Button>
+          </div>
+        )}
+
+        <Button type="submit" disabled={busy}>
+          {busy ? 'Logging in…' : 'Log in'}
+        </Button>
       </form>
       <p className="auth-switch">
         Don&rsquo;t have an account? <Link to="/register">Create an account</Link>

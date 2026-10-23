@@ -1,0 +1,20 @@
+{
+  "name": "grip-restore-backend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Grip Restore API: secure auth, email verification, and per-user game sessions",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning --watch src/server.js",
+    "start": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/server.js",
+    "test": "node --disable-warning=ExperimentalWarning --test test/auth.test.js test/sessions.test.js test/security.test.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "nodemailer": "^7.0.6",
+    "zod": "^3.24.1"
+  }
+}

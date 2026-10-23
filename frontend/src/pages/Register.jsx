@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
-import { upsertProfile } from '../data/userStore'
 import AuthLayout from '../components/AuthLayout'
 import Button from '../components/Button'
 import Input from '../components/Input'
@@ -28,13 +27,17 @@ const passwordIcon = (
   </svg>
 )
 
+const EMAIL_PATTERN = /^\S+@\S+\.\S+$/
+
 export default function Register() {
-  const navigate = useNavigate()
-  const { login } = useAuth()
+  const { register } = useAuth()
   const [remember, setRemember] = useState(false)
   const [errors, setErrors] = useState({})
+  const [formError, setFormError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [registered, setRegistered] = useState(null)
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
     const name = String(data.get('name') || '').trim()
@@ -43,20 +46,53 @@ export default function Register() {
     const confirm = String(data.get('confirm') || '')
 
     const next = {}
-    if (!name) next.name = 'We\u2019d love to know what to call you.'
+    if (!name) next.name = 'We’d love to know what to call you.'
     if (!email) next.email = 'Please enter your email.'
-    else if (!/^\S+@\S+\.\S+$/.test(email)) next.email = 'That email doesn\u2019t look right \u2014 try again.'
+    else if (!EMAIL_PATTERN.test(email)) next.email = 'That email doesn’t look right — try again.'
     if (!password) next.password = 'Please choose a password.'
     else if (password.length < 8) next.password = 'Use at least 8 characters for safety.'
+    else if (password.length > 128) next.password = 'Use 128 characters or fewer.'
     if (!confirm) next.confirm = 'Please confirm your password.'
-    else if (confirm !== password) next.confirm = 'Those passwords don\u2019t match.'
+    else if (confirm !== password) next.confirm = 'Those passwords don’t match.'
 
     setErrors(next)
-    if (Object.keys(next).length === 0) {
-      upsertProfile(email, name)
-      login(email, name)
-      navigate('/dashboard')
+    setFormError('')
+    if (Object.keys(next).length > 0) return
+
+    setBusy(true)
+    try {
+      const result = await register({ name, email, password })
+      setRegistered(result)
+    } catch (err) {
+      setFormError(err.message)
+    } finally {
+      setBusy(false)
     }
+  }
+
+  if (registered) {
+    return (
+      <AuthLayout
+        title="Grip Restore"
+        eyebrow="Almost there!"
+        subtitle="One quick step to keep your account safe."
+      >
+        <h2 className="auth-card-title">Check your email</h2>
+        <div className="auth-notice" role="status">
+          <p>{registered.message}</p>
+          {registered.devVerifyUrl && (
+            <p>
+              <a className="auth-link" href={registered.devVerifyUrl}>
+                Open verification link (dev)
+              </a>
+            </p>
+          )}
+        </div>
+        <p className="auth-switch">
+          Already verified? <Link to="/login">Log in</Link>
+        </p>
+      </AuthLayout>
+    )
   }
 
   return (
@@ -106,7 +142,16 @@ export default function Register() {
           checked={remember}
           onChange={(e) => setRemember(e.target.checked)}
         />
-        <Button type="submit">Create Account</Button>
+
+        {formError && (
+          <p className="auth-notice auth-notice--error" role="alert">
+            {formError}
+          </p>
+        )}
+
+        <Button type="submit" disabled={busy}>
+          {busy ? 'Creating account…' : 'Create Account'}
+        </Button>
       </form>
       <p className="auth-switch">
         Already have an account? <Link to="/login">Log in</Link>

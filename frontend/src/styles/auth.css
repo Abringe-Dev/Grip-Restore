@@ -135,3 +135,28 @@
     margin-bottom: var(--space-2);
   }
 }
+.auth-notice {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: rgba(22, 125, 127, 0.08);
+  border: 1px solid rgba(22, 125, 127, 0.18);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.auth-notice p {
+  margin: 0;
+}
+
+.auth-notice--error {
+  background: var(--error-bg);
+  border-color: rgba(192, 57, 43, 0.28);
+}
+
+.auth-actions {
+  display: flex;
+  justify-content: flex-start;
+}

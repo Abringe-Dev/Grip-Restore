@@ -38,3 +38,9 @@ Desktop.ini
 
 # Local env files
 *.local
+# Backend runtime data
+backend/data/
+*.db
+*.db-wal
+*.db-shm
+!backend/.env.example

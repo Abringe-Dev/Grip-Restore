@@ -1,10 +1,11 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import StatCard from '../components/StatCard'
 import GestureCard from '../components/GestureCard'
 import { useAuth } from '../context/useAuth'
-import { loadSessions, getWeeklySummary } from '../data/sessionStore'
+import { listSessions } from '../api/sessions'
+import { getWeeklySummary } from '../data/sessionStore'
 import './../styles/dashboard.css'
 
 const gestures = [
@@ -15,9 +16,27 @@ const gestures = [
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { userId, userName } = useAuth()
-  const summary = useMemo(() => getWeeklySummary(loadSessions(userId)), [userId])
+  const { userName } = useAuth()
+  const [sessions, setSessions] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    listSessions()
+      .then((rows) => {
+        if (active) setSessions(rows)
+      })
+      .catch((err) => {
+        if (active) setError(err.message)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const summary = useMemo(() => getWeeklySummary(sessions ?? []), [sessions])
   const remaining = Math.max(0, summary.sessionsGoal - summary.sessionsCompleted)
+  const loading = sessions === null && !error
 
   return (
     <main className="dashboard-main">
@@ -28,28 +47,40 @@ export default function Dashboard() {
         </p>
       </section>
 
-      <section className="stats-grid" aria-label="Your weekly summary">
-        <StatCard
-          label="Weekly Accuracy"
-          value={`${summary.accuracy}%`}
-          caption={summary.accuracyChange >= 0
-            ? `Up ${summary.accuracyChange}% from last week`
-            : `Down ${-summary.accuracyChange}% from last week`}
-          tone="blue"
-        />
-        <StatCard
-          label="Sessions Completed"
-          value={`${summary.sessionsCompleted}`}
-          caption={remaining > 0 ? `${remaining} more to hit your weekly goal` : 'Goal reached — amazing!'}
-          tone="green"
-        />
-        <StatCard
-          label="Best Streak"
-          value={`${summary.bestStreak} days`}
-          caption="You&rsquo;re on a roll &mdash; keep it going!"
-          tone="purple"
-        />
-      </section>
+      {error && (
+        <p className="page-status page-status--error" role="alert">
+          We couldn&rsquo;t load your progress: {error}
+        </p>
+      )}
+
+      {loading ? (
+        <p className="page-status" role="status">
+          Loading your progress…
+        </p>
+      ) : (
+        <section className="stats-grid" aria-label="Your weekly summary">
+          <StatCard
+            label="Weekly Accuracy"
+            value={`${summary.accuracy}%`}
+            caption={summary.accuracyChange >= 0
+              ? `Up ${summary.accuracyChange}% from last week`
+              : `Down ${-summary.accuracyChange}% from last week`}
+            tone="blue"
+          />
+          <StatCard
+            label="Sessions Completed"
+            value={`${summary.sessionsCompleted}`}
+            caption={remaining > 0 ? `${remaining} more to hit your weekly goal` : 'Goal reached — amazing!'}
+            tone="green"
+          />
+          <StatCard
+            label="Best Streak"
+            value={`${summary.bestStreak} days`}
+            caption="You&rsquo;re on a roll &mdash; keep it going!"
+            tone="purple"
+          />
+        </section>
+      )}
 
       <section className="dashboard-start">
         <div className="dashboard-start-card">

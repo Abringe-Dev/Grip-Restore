@@ -1,55 +1,65 @@
-import { useState, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AuthContext } from './authContext'
-import { normalizeEmail, lookupProfile, emailPrefix } from '../data/userStore'
-
-const STORAGE_KEY = 'grip-restore-auth-v1'
-
-function readSession() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { isAuthenticated: false, userId: null, userName: '' }
-    const parsed = JSON.parse(raw)
-    const userId = normalizeEmail(parsed && parsed.email)
-    if (!userId) return { isAuthenticated: false, userId: null, userName: '' }
-    return {
-      isAuthenticated: true,
-      userId,
-      userName: parsed && typeof parsed.name === 'string' ? parsed.name : '',
-    }
-  } catch {
-    return { isAuthenticated: false, userId: null, userName: '' }
-  }
-}
+import { apiRequest } from '../api/client'
 
 export function AuthProvider({ children }) {
-  const [session, setSession] = useState(readSession)
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
 
-  const login = useCallback((email, name) => {
-    const userId = normalizeEmail(email)
-    if (!userId) return
-    const profile = lookupProfile(userId)
-    const cleanName = String(name ?? '').trim()
-    const userName = cleanName || (profile && profile.name) || emailPrefix(userId)
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ email: userId, name: userName }))
-    } catch {
-      /* storage unavailable */
+  useEffect(() => {
+    let active = true
+
+    apiRequest('/auth/me')
+      .then((data) => {
+        if (active) setUser(data)
+      })
+      .catch(() => {
+        /* not signed in — RequireAuth will redirect */
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    const onUnauthorized = () => setUser(null)
+    window.addEventListener('gr:unauthorized', onUnauthorized)
+    return () => {
+      active = false
+      window.removeEventListener('gr:unauthorized', onUnauthorized)
     }
-    setSession({ isAuthenticated: true, userId, userName })
   }, [])
 
-  const logout = useCallback(() => {
-    try {
-      localStorage.removeItem(STORAGE_KEY)
-    } catch {
-      /* storage unavailable */
-    }
-    setSession({ isAuthenticated: false, userId: null, userName: '' })
+  const login = useCallback(async (email, password) => {
+    const data = await apiRequest('/auth/login', { method: 'POST', body: { email, password } })
+    setUser(data)
+    return data
   }, [])
 
-  return (
-    <AuthContext.Provider value={{ ...session, login, logout }}>
-      {children}
-    </AuthContext.Provider>
+  const register = useCallback(
+    (payload) => apiRequest('/auth/register', { method: 'POST', body: payload }),
+    [],
   )
+
+  const logout = useCallback(async () => {
+    try {
+      await apiRequest('/auth/logout', { method: 'POST' })
+    } finally {
+      setUser(null)
+    }
+  }, [])
+
+  const value = useMemo(
+    () => ({
+      user,
+      userId: user?.id ?? null,
+      userName: user?.name ?? '',
+      isAuthenticated: Boolean(user),
+      loading,
+      login,
+      register,
+      logout,
+    }),
+    [user, loading, login, register, logout],
+  )
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
