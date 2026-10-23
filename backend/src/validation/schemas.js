@@ -37,6 +37,15 @@ export const resetSchema = z
   .object({ token, password })
   .strict('Unexpected fields in request.')
 
+const currentPassword = z
+  .string({ required_error: 'Please enter your current password.' })
+  .min(1, 'Please enter your current password.')
+  .max(128, 'Passwords must be 128 characters or fewer.')
+
+export const changePasswordSchema = z
+  .object({ currentPassword, newPassword: password })
+  .strict('Unexpected fields in request.')
+
 export const verifySchema = z.object({ token }).strict('Unexpected fields in request.')
 
 const difficulty = z.enum(['easy', 'medium', 'hard']).optional()

@@ -47,6 +47,14 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  const logoutAll = useCallback(async () => {
+    try {
+      await apiRequest('/auth/logout-all', { method: 'POST' })
+    } finally {
+      setUser(null)
+    }
+  }, [])
+
   const value = useMemo(
     () => ({
       user,
@@ -57,8 +65,9 @@ export function AuthProvider({ children }) {
       login,
       register,
       logout,
+      logoutAll,
     }),
-    [user, loading, login, register, logout],
+    [user, loading, login, register, logout, logoutAll],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

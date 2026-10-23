@@ -227,6 +227,69 @@ test('reset-password changes the password, revokes sessions, and is single-use',
   assert.equal(replay.status, 400)
 })
 
+test('change-password requires the current password and revokes other sessions', async (t) => {
+  const ctx = await startTestServer()
+  t.after(() => ctx.close())
+
+  const user = await createVerifiedUser(ctx, { email: 'change@example.com' })
+  const second = await login(ctx, { email: user.email, password: user.password })
+  assert.equal(second.status, 200)
+
+  const anonymous = await ctx.request('/auth/change-password', {
+    method: 'POST',
+    body: { currentPassword: user.password, newPassword: 'brand-new-secret-77' },
+  })
+  assert.equal(anonymous.status, 401)
+
+  const wrongCurrent = await ctx.request('/auth/change-password', {
+    method: 'POST',
+    cookie: user.cookie,
+    body: { currentPassword: 'not-the-password', newPassword: 'brand-new-secret-77' },
+  })
+  assert.equal(wrongCurrent.status, 400)
+
+  const unchanged = await ctx.request('/auth/change-password', {
+    method: 'POST',
+    cookie: user.cookie,
+    body: { currentPassword: user.password, newPassword: user.password },
+  })
+  assert.equal(unchanged.status, 400)
+
+  const changed = await ctx.request('/auth/change-password', {
+    method: 'POST',
+    cookie: user.cookie,
+    body: { currentPassword: user.password, newPassword: 'brand-new-secret-77' },
+  })
+  assert.equal(changed.status, 200)
+
+  const currentDevice = await ctx.request('/auth/me', { cookie: user.cookie })
+  assert.equal(currentDevice.status, 200)
+
+  const otherDevice = await ctx.request('/auth/me', { cookie: second.sessionCookie })
+  assert.equal(otherDevice.status, 401)
+
+  const oldPassword = await login(ctx, { email: user.email, password: user.password })
+  assert.equal(oldPassword.status, 401)
+
+  const newPassword = await login(ctx, { email: user.email, password: 'brand-new-secret-77' })
+  assert.equal(newPassword.status, 200)
+})
+
+test('logout-all revokes every device', async (t) => {
+  const ctx = await startTestServer()
+  t.after(() => ctx.close())
+
+  const user = await createVerifiedUser(ctx, { email: 'everywhere@example.com' })
+  const second = await login(ctx, { email: user.email, password: user.password })
+  assert.equal(second.status, 200)
+
+  const res = await ctx.request('/auth/logout-all', { method: 'POST', cookie: user.cookie })
+  assert.equal(res.status, 204)
+
+  assert.equal((await ctx.request('/auth/me', { cookie: user.cookie })).status, 401)
+  assert.equal((await ctx.request('/auth/me', { cookie: second.sessionCookie })).status, 401)
+})
+
 test('accounts persist when the API restarts', async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'grip-restore-'))
   const dbPath = path.join(dir, 'test.db')

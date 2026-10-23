@@ -4,7 +4,7 @@ How every user-facing feature is implemented, which files own it, and where the 
 
 - **Scope:** `frontend/` (game + UI) and `backend/` (auth, email verification, per-user persistence).
 - **Status:** full-stack — real accounts, httpOnly cookie sessions, SQLite storage, email verification required before login.
-- **Verification snapshot:** backend `npm test` 22/22, frontend `npm test` 16/16, `npm run lint` clean, `npm run build` OK, 26/26 end-to-end checks through the Vite proxy (register → verify → login → save/list sessions → reset → old sessions revoked).
+- **Verification snapshot:** backend `npm test` 24/24, frontend `npm test` 16/16, `npm run lint` clean, `npm run build` OK, 26/26 auth/session checks plus 13/13 account-management checks through the Vite proxy (register → verify → login → save/list → reset → change password → sign out everywhere).
 
 ---
 
@@ -135,6 +135,7 @@ The trade-off is that providers must release resources themselves. `WebcamProvid
 | `/calibration` | `Calibration` | `RequireAuth` + `AppLayout` |
 | `/game` | `Gameplace` | `RequireAuth` + `AppLayout` |
 | `/history` | `History` | `RequireAuth` + `AppLayout` |
+| `/account` | `Account` | `RequireAuth` + `AppLayout` |
 | `*` | redirect → `/dashboard` | — |
 
 `SESSION_PATHS = ['/setup', '/calibration', '/game']` (`constants/sessionPaths.js:1`) is the single source of truth for "camera should stay on".
@@ -203,6 +204,7 @@ There is no global session-config store. Configuration travels in React Router `
 - On mount, `AuthProvider` calls `GET /auth/me` with `credentials: 'include'`. `user` is `null` until this resolves; `loading` gates guarded routes (`AuthProvider.jsx`).
 - Any `401` from `/auth/me` or `/api/*` dispatches a `gr:unauthorized` window event; the provider clears `user`, so an expired/revoked session redirects on the next guarded render (`api/client.js`).
 - `login(email, password)` posts to `/auth/login`, stores the returned user, and navigates to `/dashboard`. `logout()` posts to `/auth/logout` and clears state even if the request fails.
+- `logoutAll()` posts to `/auth/logout-all`, revokes every session (including the current one), and clears state. The Navbar exposes ordinary logout; `/account` exposes **Sign out of all devices**.
 
 **Registration (verification required)**
 
@@ -217,6 +219,12 @@ There is no global session-config store. Configuration travels in React Router `
 - `/forgot-password` posts an email; the response is always the same generic message (+ `devResetUrl` in development).
 - `/reset-password?token=…` validates the new password, consumes the token (30-minute TTL), revokes **all** sessions, and asks the user to log in again.
 - The reset page reads the token from the query string; `index.html` sets `<meta name="referrer" content="no-referrer">` so the token cannot leak through the `Referer` header.
+
+**Account management (`/account`)**
+
+- Profile card shows name, email, and verification status.
+- **Change password** requires the current password, applies the same policy checks as registration/reset, rejects reusing the current password, and revokes every *other* session while keeping this device signed in (`POST /auth/change-password`, rate-limited).
+- **Sign out of all devices** deletes every session row and clears the cookie (`POST /auth/logout-all`).
 
 **Account protection**
 
@@ -573,7 +581,8 @@ Foreign keys cascade on user deletion.
 - Cookie `gr_session` in development; `__Host-gr_session` (requires `Secure`, `Path=/`, no `Domain`) in production. Always `HttpOnly`, `SameSite=Lax`, `Max-Age` 30 days.
 - Session tokens are 32 random bytes; only their SHA-256 hash is stored. Maximum 10 sessions per user (oldest evicted).
 - Verification and reset tokens are 32 random bytes, hashed at rest, single-use. Verification TTL 24 h, reset TTL 30 min. Resending invalidates the previous token; resetting revokes all sessions.
-- Logout deletes the current session row and clears the cookie.
+- Logout deletes the current session row and clears the cookie. Logout-all deletes every row for the user.
+- Change-password verifies the current password, re-hashes with a fresh salt, and deletes all sessions whose token hash differs from the current one (the current device stays signed in).
 
 ### Passwords and lockout
 
@@ -637,11 +646,11 @@ Foreign keys cascade on user deletion.
 
 ### Automated
 
-`npm test` at the root runs the backend suites (**22 tests**) and the frontend suites (**16 tests**).
+`npm test` at the root runs the backend suites (**24 tests**) and the frontend suites (**16 tests**).
 
 | Suite | Coverage |
 | --- | --- |
-| `backend/test/auth.test.js` (10) | Register → verify → login, duplicate email, unverified login (`EMAIL_NOT_VERIFIED`), invalid credentials, logout, `/auth/me`, forgot/reset (including session revocation), resend invalidating the previous token |
+| `backend/test/auth.test.js` (12) | Register → verify → login, duplicate email, unverified login (`EMAIL_NOT_VERIFIED`), invalid credentials, logout, `/auth/me`, forgot/reset (including session revocation), resend invalidating the previous token, change-password (current-password check, other sessions revoked, current kept), logout-all |
 | `backend/test/sessions.test.js` (3) | Auth required; per-user isolation; server-recomputed accuracy; validation; persisted ordering |
 | `backend/test/security.test.js` (7) | Production cookie flags (`__Host-`, `Secure`, `HttpOnly`, `SameSite`); dev cookie; helmet/CSP headers; foreign-origin rejection; body-size limit; password pepper behavior; quoted emails treated literally (SQL injection) |
 | `frontend/src/game/fallingGame.test.js` (11) | Difficulty ordering and fallback; consistent 20% hit band; schedule lead-in, no repeated gestures, gaps within bounds; `noteProgress` clamping; visibility/hit/miss boundaries; summary math; tick < hardest window |
@@ -651,13 +660,15 @@ Backend tests spin up the real Express app on an ephemeral port against a tempor
 
 ### End-to-end smoke (local, repeatable)
 
-26 checks through the Vite dev proxy (`:5173` → `:3001`) pass with real cookies: anonymous `/auth/me` → 401, register → dev verify link, verify, login sets `gr_session`, `/auth/me`, create/list sessions, per-user auth guard, wrong password, forgot/reset, old session revoked, new password works, old password rejected, foreign-origin POST blocked, and all public SPA routes return the app shell.
+26 auth/session checks through the Vite dev proxy (`:5173` → `:3001`) pass with real cookies: anonymous `/auth/me` → 401, register → dev verify link, verify, login sets `gr_session`, `/auth/me`, create/list sessions, per-user auth guard, wrong password, forgot/reset, old session revoked, new password works, old password rejected, foreign-origin POST blocked, and all public SPA routes return the app shell.
+
+A further 13 checks cover account management: wrong current password rejected, change-password succeeds, the initiating device stays signed in, the second device is revoked, the old password fails, the new password works, sign-out-everywhere clears both devices, and `/account` serves the SPA.
 
 ### Static
 
 - `npm run lint` — ESLint recommended + react-hooks + react-refresh: clean.
 - `npm run build` — Vite production build: OK, 490 modules, MediaPipe emitted as a separate chunk (`vision_bundle`, 153.90 kB).
-- `npm test` — 22 backend + 16 frontend tests pass.
+- `npm test` — 24 backend + 16 frontend tests pass.
 
 ### Manual / browser-level (not automated)
 
@@ -680,7 +691,7 @@ These depend on a real camera and remain verified only by inspection:
 | Rate limits | Login/register/recovery counters and account lockouts are in-memory; they reset on restart and are not shared across instances. |
 | Session cleanup | Expired session/token rows are ignored but not periodically deleted; cleanup happens lazily. |
 | Account recovery | A known email can be locked out by five failed attempts (accepted trade-off). |
-| Account settings | No change-password/change-email flows while signed in; recovery is via email only. |
+| Account settings | No change-email or delete-account flow; password changes are supported from `/account`. |
 | Abandonment | Leaving `/game` via the Navbar or browser back unmounts the game without saving. Only "Quit session" saves partial progress. |
 | Refresh | Refreshing `/game` loses duration/difficulty/calibration route state and restarts with defaults (5 min, Easy, no calibration). |
 | Quit duration | Wall-clock based, so paused time is included; minimum 1 minute. |
@@ -705,7 +716,8 @@ These depend on a real camera and remain verified only by inspection:
 | `95b553c` | Fix: new accounts start with empty history (no seeding) |
 | `862d9f6` | Prompt-window gameplay engine (superseded) |
 | `cca5ed3` | Falling-gesture gameplay, difficulty, scoring, tests |
-| _pending_ | **Current** — backend API, secure auth, email verification, reset flow, server-backed sessions |
+| `ed78b5e` | Backend API, secure auth, email verification, reset flow, server-backed sessions |
+| _pending_ | **Current** — account settings: change password and sign out everywhere |
 
 ---
 

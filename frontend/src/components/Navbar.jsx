@@ -7,14 +7,15 @@ const links = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/start-session', label: 'Start Session' },
   { to: '/history', label: 'History' },
+  { to: '/account', label: 'Account' },
 ]
 
 export default function Navbar() {
   const { logout } = useAuth()
   const navigate = useNavigate()
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
     navigate('/login')
   }
 

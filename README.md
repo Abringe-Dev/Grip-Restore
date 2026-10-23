@@ -6,6 +6,7 @@ A web-based rehabilitation game for stroke survivors and arthritis patients. Gri
 
 - **Real accounts** — register, log in, log out, and email verification (required before login)
 - **Password recovery** — single-use, time-limited reset links; resetting signs out every session
+- **Account settings** — change your password (signs out other devices) or sign out everywhere
 - **Server-side sessions** — httpOnly cookie sessions backed by SQLite, so accounts and progress survive browser resets and work across devices
 - **Dashboard** — weekly summary with accuracy, sessions completed, and best streak
 - **Start Session** — pick a 5 or 10 minute session and an Easy, Medium, or Hard difficulty
@@ -117,6 +118,8 @@ With no SMTP configured, verification and reset emails are printed to the API co
 | `POST` | `/auth/register` | — | Create an unverified account; returns a generic message (+ dev link) |
 | `POST` | `/auth/login` | — | Start a session; `403 EMAIL_NOT_VERIFIED` until verified |
 | `POST` | `/auth/logout` | cookie | Revoke the current session |
+| `POST` | `/auth/logout-all` | cookie | Revoke every session for the account |
+| `POST` | `/auth/change-password` | cookie | Verify the current password, set a new one, revoke other sessions |
 | `GET` | `/auth/me` | cookie | Current user |
 | `POST` | `/auth/forgot-password` | — | Email a reset link (always a generic response) |
 | `POST` | `/auth/reset-password` | — | Set a new password; revokes all sessions |

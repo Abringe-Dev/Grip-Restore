@@ -15,3 +15,14 @@ export function resetPassword(token, password) {
 export function verifyEmail(token) {
   return apiRequest('/auth/verify-email', { method: 'POST', body: { token } })
 }
+
+export function changePassword(currentPassword, newPassword) {
+  return apiRequest('/auth/change-password', {
+    method: 'POST',
+    body: { currentPassword, newPassword },
+  })
+}
+
+export function logoutEverywhere() {
+  return apiRequest('/auth/logout-all', { method: 'POST' })
+}

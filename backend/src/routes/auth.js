@@ -11,6 +11,7 @@ import { requireAuth } from '../auth/middleware.js'
 import { clearSessionCookie, readSessionToken, setSessionCookie } from '../http/cookies.js'
 import { normalizeEmail, validate } from '../middleware/validate.js'
 import {
+  changePasswordSchema,
   emailSchema,
   loginSchema,
   registerSchema,
@@ -178,6 +179,63 @@ export function createAuthRouter({ db, config, limits }) {
 
   router.get('/me', requireAuth(db, config), (req, res) => {
     res.json(publicUser(req.user))
+  })
+
+  router.post(
+    '/change-password',
+    limits.recovery,
+    requireAuth(db, config),
+    validate(changePasswordSchema),
+    async (req, res, next) => {
+      try {
+        const { currentPassword, newPassword } = req.valid
+        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id)
+
+        const valid = await verifyPassword(currentPassword, user.password_hash, config.pepper)
+        if (!valid) {
+          res.status(400).json({ error: 'Your current password is incorrect.' })
+          return
+        }
+        if (currentPassword === newPassword) {
+          res.status(400).json({ error: 'Choose a password different from your current one.' })
+          return
+        }
+
+        const policyError = validatePasswordPolicy(newPassword, {
+          email: user.email,
+          name: user.name,
+        })
+        if (policyError) {
+          res.status(400).json({ error: policyError })
+          return
+        }
+
+        const passwordHash = await hashPassword(newPassword, config.pepper)
+        const now = new Date().toISOString()
+        transaction(db, () => {
+          db.prepare(
+            `UPDATE users
+             SET password_hash = ?, updated_at = ?, failed_login_count = 0, locked_until = NULL
+             WHERE id = ?`,
+          ).run(passwordHash, now, user.id)
+          // Keep this device signed in; every other session is revoked.
+          db.prepare('DELETE FROM auth_sessions WHERE user_id = ? AND token_hash <> ?').run(
+            user.id,
+            hashToken(req.sessionToken),
+          )
+        })
+
+        res.json({ message: 'Password updated. Other devices have been signed out.' })
+      } catch (err) {
+        next(err)
+      }
+    },
+  )
+
+  router.post('/logout-all', requireAuth(db, config), (req, res) => {
+    revokeAllSessions(db, req.user.id)
+    clearSessionCookie(res, config)
+    res.status(204).end()
   })
 
   router.post('/forgot-password', limits.recovery, validate(emailSchema), async (req, res, next) => {

@@ -16,6 +16,7 @@ import Setup from './pages/Setup'
 import Calibration from './pages/Calibration'
 import Gameplace from './pages/Gameplace'
 import History from './pages/History'
+import Account from './pages/Account'
 
 function AnimatedRoutes() {
   const location = useLocation()
@@ -117,6 +118,14 @@ function AnimatedRoutes() {
             element={
               <PageTransition>
                 <History />
+              </PageTransition>
+            }
+          />
+          <Route
+            path="account"
+            element={
+              <PageTransition>
+                <Account />
               </PageTransition>
             }
           />
