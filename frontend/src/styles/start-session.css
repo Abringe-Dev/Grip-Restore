@@ -24,7 +24,6 @@
   color: var(--ink-soft);
 }
 
-.start-options-title,
 .start-options-title {
   font-weight: 500;
   font-size: var(--text-sm);
@@ -81,6 +80,22 @@
 .start-option-desc {
   font-size: var(--text-2xs);
   color: var(--ink-soft);
+}
+
+.start-option--difficulty {
+  width: 220px;
+}
+
+.start-option--difficulty .start-option-time {
+  color: var(--option-color, var(--primary));
+}
+
+.start-option--difficulty.is-selected {
+  border-color: var(--option-color, var(--primary));
+}
+
+.start-option--difficulty:hover:not(.is-selected) {
+  border-color: color-mix(in srgb, var(--option-color, var(--primary)) 55%, transparent);
 }
 
 .start-gestures {

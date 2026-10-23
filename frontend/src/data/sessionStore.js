@@ -4,6 +4,7 @@ const SESSIONS_PREFIX = 'grip-restore-sessions-v1:'
 const DAY_MS = 24 * 60 * 60 * 1000
 const WEEKS_SHOWN = 7
 const HISTORY_LIMIT = 6
+const DIFFICULTY_LABELS = { easy: 'Easy', medium: 'Medium', hard: 'Hard' }
 
 export const SESSIONS_GOAL = 8
 
@@ -72,12 +73,14 @@ export function loadSessions(userId) {
 
 /**
  * F5 contract: persists one completed session for the user.
- * Shape: { durationMin, gesture, gestures?, accuracy, calibration?, dateISO?, id? }
+ * Shape: { durationMin, gesture, gestures?, accuracy, difficulty?, hits?, misses?, calibration?, dateISO?, id? }
  */
 export function saveSession(userId, session) {
   const id = normalizeEmail(userId)
   if (!id) return []
   const rawDate = session && typeof session.dateISO === 'string' ? session.dateISO : ''
+  const rawHits = session && session.hits != null ? Number(session.hits) : NaN
+  const rawMisses = session && session.misses != null ? Number(session.misses) : NaN
   const entry = {
     id: (session && session.id) || makeId(),
     dateISO: !Number.isNaN(Date.parse(rawDate)) ? rawDate : new Date().toISOString(),
@@ -85,6 +88,9 @@ export function saveSession(userId, session) {
     gesture: String((session && session.gesture) || ''),
     gestures: session && Array.isArray(session.gestures) ? session.gestures : [],
     accuracy: clampAccuracy(session && session.accuracy),
+    difficulty: typeof (session && session.difficulty) === 'string' ? session.difficulty : '',
+    hits: Number.isFinite(rawHits) ? Math.max(0, Math.floor(rawHits)) : null,
+    misses: Number.isFinite(rawMisses) ? Math.max(0, Math.floor(rawMisses)) : null,
     calibration: (session && session.calibration) ?? null,
   }
   if (!isValidSession(entry)) return loadSessions(id)
@@ -195,7 +201,10 @@ export function getSessionHistory(sessions, limit = HISTORY_LIMIT) {
     .map((s) => ({
       id: s.id,
       date: formatDate(s.dateISO),
-      gesture: s.gesture || (s.gestures && s.gestures[0]) || '',
+      mode: DIFFICULTY_LABELS[s.difficulty] || s.gesture || (s.gestures && s.gestures[0]) || 'Session',
+      difficulty: s.difficulty || '',
+      hits: Number.isFinite(s.hits) ? Math.max(0, Math.round(s.hits)) : null,
+      misses: Number.isFinite(s.misses) ? Math.max(0, Math.round(s.misses)) : null,
       accuracy: Math.round(s.accuracy),
       duration: `${s.durationMin} min`,
     }))

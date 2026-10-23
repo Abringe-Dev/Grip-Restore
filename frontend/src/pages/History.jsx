@@ -59,12 +59,22 @@ export default function History() {
         <h2 className="history-list-title">Recent sessions</h2>
         {sessionHistory.length > 0 ? (
           <ul className="history-list">
+            <li className="history-row history-row--head" aria-hidden="true">
+              <span>Date</span>
+              <span>Mode</span>
+              <span className="history-row-hits">Hits</span>
+              <span className="history-row-misses">Misses</span>
+              <span className="history-row-accuracy">Accuracy</span>
+              <span className="history-row-duration">Duration</span>
+            </li>
             {sessionHistory.map((s) => (
               <li key={s.id} className="history-row">
                 <span className="history-row-date">{s.date}</span>
-                <span className="history-row-gesture">{s.gesture}</span>
-                <span className="history-row-duration">{s.duration}</span>
+                <span className="history-row-mode">{s.mode}</span>
+                <span className="history-row-hits">{s.hits ?? '—'}</span>
+                <span className="history-row-misses">{s.misses ?? '—'}</span>
                 <span className="history-row-accuracy">{s.accuracy}%</span>
+                <span className="history-row-duration">{s.duration}</span>
               </li>
             ))}
           </ul>

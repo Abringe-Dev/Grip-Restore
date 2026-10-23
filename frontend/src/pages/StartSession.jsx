@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import GestureCard from '../components/GestureCard'
+import { DIFFICULTIES } from '../game/fallingGame'
 import './../styles/start-session.css'
 
 const durations = [
@@ -18,6 +19,7 @@ const gestures = [
 export default function StartSession() {
   const navigate = useNavigate()
   const [selected, setSelected] = useState(10)
+  const [difficulty, setDifficulty] = useState('easy')
 
   return (
     <main className="start-session-main">
@@ -48,6 +50,26 @@ export default function StartSession() {
         </div>
       </section>
 
+      <section className="start-options" aria-label="Choose your difficulty">
+        <p className="start-options-title">How challenging should it be?</p>
+        <div className="start-options-row">
+          {DIFFICULTIES.map((d) => (
+            <button
+              key={d.key}
+              type="button"
+              className={`start-option start-option--difficulty${difficulty === d.key ? ' is-selected' : ''}`}
+              style={{ '--option-color': d.color }}
+              onClick={() => setDifficulty(d.key)}
+              aria-pressed={difficulty === d.key}
+            >
+              <span className="start-option-time">{d.label}</span>
+              <span className="start-option-label">{d.tagline}</span>
+              <span className="start-option-desc">{d.description}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
       <section className="start-gestures" aria-label="Gestures you will practice">
         <p className="gesture-strip-title">Gestures you&rsquo;ll practice</p>
         <div className="gesture-strip-row">
@@ -58,7 +80,9 @@ export default function StartSession() {
       </section>
 
       <div className="start-action">
-        <Button onClick={() => navigate('/setup', { state: { durationMin: selected } })}>Begin Session</Button>
+        <Button onClick={() => navigate('/setup', { state: { durationMin: selected, difficulty } })}>
+          Begin Session
+        </Button>
       </div>
     </main>
   )

@@ -6,11 +6,12 @@ A web-based rehabilitation game for stroke survivors and arthritis patients. Gri
 
 - **Auth-protected app** — mock login/register (localStorage) with guarded routes
 - **Dashboard** — home overview with progress stats and a quick Start Session entry point
-- **Start Session** — pick a session length (5 or 10 min) and begin
+- **Start Session** — pick a 5 or 10 minute session and an Easy, Medium, or Hard difficulty
 - **Webcam Setup** — requests camera permission and shows a live, mirrored preview
 - **Calibration** — 3-step hand calibration (Pinch, Fist, Open Palm) with gesture prompts
-- **Gameplace** — gameplay screen (rhythm session placeholder, wired for the camera feed)
-- **History** — weekly summary, accuracy trend and sessions-per-week SVG charts, plus a recent-sessions list
+- **Gameplay** — gesture icons fall down three lanes; match each gesture when it reaches the target line
+- **Live scoring** — tracks hits, misses, and accuracy, with sound feedback and a 3-2-1 countdown
+- **History** — weekly summary, accuracy trend and sessions-per-week SVG charts, plus recent sessions with difficulty and hit/miss counts
 
 ## Tech Stack
 
@@ -18,6 +19,7 @@ A web-based rehabilitation game for stroke survivors and arthritis patients. Gri
 - **react-router-dom** for routing
 - **motion** for page transitions
 - **getUserMedia** for the live webcam stream
+- **MediaPipe Tasks Vision** for real-time hand landmark tracking and gesture recognition
 - Hand-rolled design system (CSS tokens) derived from Figma
 
 ## Camera architecture
@@ -47,10 +49,11 @@ The app opens at the address Vite prints (default `http://localhost:5173`). Log 
 | `npm run dev`    | Start the dev server       |
 | `npm run build`  | Production build to `dist` |
 | `npm run lint`   | Run ESLint                 |
+| `npm test`       | Run the gameplay and session-store tests |
 | `npm run preview`| Preview the production build |
 
 ## Roadmap
 
-- Real-time hand tracking (MediaPipe Hands, 21 hand landmarks) to power calibration validation and gameplay
-- Backend for real user accounts, session storage, and progress persistence
-- Gameplay engine (rhythm/music-driven exercise screens)
+- Backend for real user accounts, session storage, and cross-device progress persistence
+- Adaptive difficulty based on recent accuracy and fatigue
+- More gesture variety and therapist-configurable exercise plans

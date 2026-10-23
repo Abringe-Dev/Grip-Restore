@@ -89,6 +89,15 @@ export function playSuccess() {
   }
 }
 
+export function playMiss() {
+  try {
+    tone(220, 150, 0, 0.2)
+    tone(165, 170, 110, 0.18)
+  } catch {
+    /* silent */
+  }
+}
+
 export function playTick() {
   try {
     tone(440, 50, 0, 0.16)
