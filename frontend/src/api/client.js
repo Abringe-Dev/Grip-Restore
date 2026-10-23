@@ -44,7 +44,11 @@ export async function apiRequest(path, { method = 'GET', body, signal } = {}) {
 
   if (!response.ok) {
     if (response.status === 401) notifyUnauthorized(path)
-    throw new ApiError(data?.error || 'Something went wrong. Please try again.', {
+    const offline =
+      (response.status === 502 || response.status === 504) && !data
+        ? 'The API server is not running. Start it with “npm run dev” from the project root.'
+        : ''
+    throw new ApiError(data?.error || offline || 'Something went wrong. Please try again.', {
       status: response.status,
       code: data?.code || '',
     })

@@ -9,7 +9,7 @@ A web-based rehabilitation game for stroke survivors and arthritis patients. Gri
 - **Account settings** — change your password (signs out other devices) or sign out everywhere
 - **Server-side sessions** — httpOnly cookie sessions backed by SQLite, so accounts and progress survive browser resets and work across devices
 - **Dashboard** — weekly summary with accuracy, sessions completed, and best streak
-- **Start Session** — pick a 5 or 10 minute session and an Easy, Medium, or Hard difficulty
+- **Start Session** — pick a 5 or 10 minute session and an Easy, Medium, or Hard difficulty; the difficulty is suggested from your recent accuracy
 - **Webcam Setup** — requests camera permission and shows a live, mirrored preview
 - **Calibration** — 3-step hand calibration (Pinch, Fist, Open Palm)
 - **Gameplay** — gesture icons fall down three lanes; match each gesture when it reaches the target line
@@ -99,6 +99,18 @@ With no SMTP configured, verification and reset emails are printed to the API co
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` | unset / `587` / `false` | Any one of nodemailer's supported hosts |
 | `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | empty / `Grip Restore <no-reply@…>` | Credentials + From header |
 | `VITE_API_BASE` | empty | Frontend only; use when the API is not same-origin (cookies need CORS credentials) |
+
+### Troubleshooting
+
+- **"The API server is not running" / registration fails** — start the dev servers from the **repository root**, not from `frontend/` or `backend/`:
+
+  ```bash
+  npm run dev
+  ```
+
+  The frontend alone (`npm --prefix frontend run dev`) has no API to talk to; check `http://localhost:3001/health` returns `{ "ok": true }`.
+- **Port 5173 already in use** — an earlier dev server is still running. Stop it (`Ctrl+C` in its terminal) and run `npm run dev` again.
+- **Emails aren't arriving** — without SMTP configured, verification and reset links are printed in the API terminal. They also appear as "Open link (dev)" shortcuts in the UI.
 
 ## Scripts
 

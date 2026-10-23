@@ -5,6 +5,7 @@ import {
   getBestStreak,
   getSessionHistory,
   getSessionsPerWeek,
+  getRecommendedDifficulty,
   getWeeklySummary,
   startOfISOWeek,
 } from './sessionStore.js'
@@ -104,4 +105,61 @@ test('startOfISOWeek lands on Monday midnight', () => {
   assert.equal(monday.getDay(), 1)
   assert.equal(monday.getHours(), 0)
   assert.equal(monday.getMinutes(), 0)
+})
+
+test('recommendation starts new accounts on Easy', () => {
+  const rec = getRecommendedDifficulty([])
+  assert.equal(rec.key, 'easy')
+  assert.match(rec.reason, /learn the rhythm/i)
+})
+
+test('recommendation steps up after high accuracy and backs off after a rough patch', () => {
+  const dates = ['2026-10-20', '2026-10-19', '2026-10-18', '2026-10-17', '2026-10-16']
+  const strong = dates.map((d, i) =>
+    session({ id: `up-${i}`, dateISO: `${d}T10:00:00.000Z`, difficulty: 'easy', accuracy: 92 }),
+  )
+  const up = getRecommendedDifficulty(strong)
+  assert.equal(up.key, 'medium')
+  assert.match(up.reason, /step up/i)
+
+  const rough = dates.map((d, i) =>
+    session({ id: `down-${i}`, dateISO: `${d}T10:00:00.000Z`, difficulty: 'hard', accuracy: 48 }),
+  )
+  const down = getRecommendedDifficulty(rough)
+  assert.equal(down.key, 'medium')
+  assert.match(down.reason, /rebuild confidence/i)
+})
+
+test('recommendation keeps the last difficulty in the middle band and caps at Hard', () => {
+  const steady = [
+    session({ id: 's1', dateISO: '2026-10-20T10:00:00.000Z', difficulty: 'medium', accuracy: 70 }),
+    session({ id: 's2', dateISO: '2026-10-19T10:00:00.000Z', difficulty: 'medium', accuracy: 74 }),
+  ]
+  const keep = getRecommendedDifficulty(steady)
+  assert.equal(keep.key, 'medium')
+  assert.match(keep.reason, /fits you well/i)
+
+  const elite = [
+    session({ id: 'e1', dateISO: '2026-10-20T10:00:00.000Z', difficulty: 'hard', accuracy: 96 }),
+  ]
+  assert.equal(getRecommendedDifficulty(elite).key, 'hard')
+})
+
+test('recommendation ignores invalid rows and old sessions outside the window', () => {
+  const rows = [
+    session({ id: 'bad', dateISO: 'not-a-date', accuracy: 100 }),
+    ...Array.from({ length: 5 }, (_, i) =>
+      session({
+        id: `recent-${i}`,
+        dateISO: `2026-10-${20 - i}T10:00:00.000Z`,
+        difficulty: 'medium',
+        accuracy: 70,
+      }),
+    ),
+    session({ id: 'old', dateISO: '2026-01-01T10:00:00.000Z', difficulty: 'easy', accuracy: 10 }),
+  ]
+
+  const rec = getRecommendedDifficulty(rows)
+  assert.equal(rec.key, 'medium')
+  assert.match(rec.reason, /70%/)
 })

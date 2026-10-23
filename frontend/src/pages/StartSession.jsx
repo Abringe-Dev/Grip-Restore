@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import GestureCard from '../components/GestureCard'
+import { listSessions } from '../api/sessions'
+import { getRecommendedDifficulty } from '../data/sessionStore'
 import { DIFFICULTIES } from '../game/fallingGame'
 import './../styles/start-session.css'
 
@@ -20,6 +22,32 @@ export default function StartSession() {
   const navigate = useNavigate()
   const [selected, setSelected] = useState(10)
   const [difficulty, setDifficulty] = useState('easy')
+  const [recommendation, setRecommendation] = useState(null)
+  const [picked, setPicked] = useState(false)
+  const pickedRef = useRef(false)
+
+  useEffect(() => {
+    let active = true
+    listSessions()
+      .then((rows) => {
+        if (!active) return
+        const next = getRecommendedDifficulty(rows)
+        setRecommendation(next)
+        if (!pickedRef.current) setDifficulty(next.key)
+      })
+      .catch(() => {
+        /* recommendation is a nice-to-have; keep the default */
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const chooseDifficulty = (key) => {
+    pickedRef.current = true
+    setPicked(true)
+    setDifficulty(key)
+  }
 
   return (
     <main className="start-session-main">
@@ -52,6 +80,9 @@ export default function StartSession() {
 
       <section className="start-options" aria-label="Choose your difficulty">
         <p className="start-options-title">How challenging should it be?</p>
+        <p className="start-recommendation" role="status">
+          {recommendation ? recommendation.reason : 'Checking your recent sessions…'}
+        </p>
         <div className="start-options-row">
           {DIFFICULTIES.map((d) => (
             <button
@@ -59,9 +90,12 @@ export default function StartSession() {
               type="button"
               className={`start-option start-option--difficulty${difficulty === d.key ? ' is-selected' : ''}`}
               style={{ '--option-color': d.color }}
-              onClick={() => setDifficulty(d.key)}
+              onClick={() => chooseDifficulty(d.key)}
               aria-pressed={difficulty === d.key}
             >
+              {!picked && recommendation?.key === d.key && (
+                <span className="start-option-recommended">Suggested</span>
+              )}
               <span className="start-option-time">{d.label}</span>
               <span className="start-option-label">{d.tagline}</span>
               <span className="start-option-desc">{d.description}</span>
