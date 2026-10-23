@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  formatDays,
   getAccuracyTrend,
   getBestStreak,
   getSessionHistory,
@@ -98,6 +99,15 @@ test('best streak counts consecutive session days and ignores duplicates', () =>
 
   assert.equal(getBestStreak(rows), 2)
   assert.equal(getBestStreak([]), 0)
+})
+
+test('formatDays pluralizes the streak label', () => {
+  assert.equal(formatDays(0), '0 days')
+  assert.equal(formatDays(1), '1 day')
+  assert.equal(formatDays(2), '2 days')
+  assert.equal(formatDays('3'), '3 days')
+  assert.equal(formatDays(Number.NaN), '0 days')
+  assert.equal(formatDays(-2), '0 days')
 })
 
 test('startOfISOWeek lands on Monday midnight', () => {

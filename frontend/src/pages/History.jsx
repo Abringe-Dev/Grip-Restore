@@ -3,6 +3,7 @@ import StatCard from '../components/StatCard'
 import { AccuracyTrendChart, SessionsBarChart } from '../components/Charts'
 import { listSessions } from '../api/sessions'
 import {
+  formatDays,
   getWeeklySummary,
   getAccuracyTrend,
   getSessionsPerWeek,
@@ -68,7 +69,7 @@ export default function History() {
               caption={remaining > 0 ? `${remaining} more to hit your weekly goal` : 'Goal reached — amazing!'}
               tone="green"
             />
-            <StatCard label="Best Streak" value={`${weeklySummary.bestStreak} days`} caption="Keep the momentum going!" tone="purple" />
+            <StatCard label="Best Streak" value={formatDays(weeklySummary.bestStreak)} caption="Keep the momentum going!" tone="purple" />
           </section>
 
           <section className="history-charts" aria-label="Charts">

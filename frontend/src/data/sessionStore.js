@@ -141,6 +141,11 @@ export function getRecommendedDifficulty(sessions) {
   return { key: DIFFICULTY_ORDER[index], reason }
 }
 
+export function formatDays(count) {
+  const n = Number.isFinite(Number(count)) ? Math.max(0, Math.round(Number(count))) : 0
+  return `${n} ${n === 1 ? 'day' : 'days'}`
+}
+
 function formatDate(dateISO) {
   return new Date(dateISO).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }

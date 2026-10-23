@@ -4,7 +4,7 @@ How every user-facing feature is implemented, which files own it, and where the 
 
 - **Scope:** `frontend/` (game + UI) and `backend/` (auth, email verification, per-user persistence).
 - **Status:** full-stack — real accounts, httpOnly cookie sessions, SQLite storage, email verification required before login.
-- **Verification snapshot:** backend `npm test` 24/24, frontend `npm test` 20/20, `npm run lint` clean, `npm run build` OK, 26/26 auth/session checks plus 13/13 account-management checks through the Vite proxy (register → verify → login → save/list → reset → change password → sign out everywhere).
+- **Verification snapshot:** backend `npm test` 24/24, frontend `npm test` 21/21, `npm run lint` clean, `npm run build` OK, 26/26 auth/session checks plus 13/13 account-management checks through the Vite proxy (register → verify → login → save/list → reset → change password → sign out everywhere).
 
 ---
 
@@ -647,7 +647,7 @@ Foreign keys cascade on user deletion.
 
 ### Automated
 
-`npm test` at the root runs the backend suites (**24 tests**) and the frontend suites (**20 tests**).
+`npm test` at the root runs the backend suites (**24 tests**) and the frontend suites (**21 tests**).
 
 | Suite | Coverage |
 | --- | --- |
@@ -655,7 +655,7 @@ Foreign keys cascade on user deletion.
 | `backend/test/sessions.test.js` (3) | Auth required; per-user isolation; server-recomputed accuracy; validation; persisted ordering |
 | `backend/test/security.test.js` (7) | Production cookie flags (`__Host-`, `Secure`, `HttpOnly`, `SameSite`); dev cookie; helmet/CSP headers; foreign-origin rejection; body-size limit; password pepper behavior; quoted emails treated literally (SQL injection) |
 | `frontend/src/game/fallingGame.test.js` (11) | Difficulty ordering and fallback; consistent 20% hit band; schedule lead-in, no repeated gestures, gaps within bounds; `noteProgress` clamping; visibility/hit/miss boundaries; summary math; tick < hardest window |
-| `frontend/src/data/sessionStore.test.js` (9) | History mapping (difficulty/hits/misses/legacy rows); 7-week bucketing; carry-forward accuracy trend; weekly summary; best streak; Monday-start week; difficulty recommendation (new account, step up/down, hold, Hard cap, recency window) |
+| `frontend/src/data/sessionStore.test.js` (10) | History mapping (difficulty/hits/misses/legacy rows); 7-week bucketing; carry-forward accuracy trend; weekly summary; best streak; Monday-start week; difficulty recommendation (new account, step up/down, hold, Hard cap, recency window); `formatDays` pluralization |
 
 Backend tests spin up the real Express app on an ephemeral port against a temporary SQLite file (`backend/test/helpers.js`). Frontend tests use a fixed rng and injected `now`.
 
@@ -669,7 +669,7 @@ A further 13 checks cover account management: wrong current password rejected, c
 
 - `npm run lint` — ESLint recommended + react-hooks + react-refresh: clean.
 - `npm run build` — Vite production build: OK, 490 modules, MediaPipe emitted as a separate chunk (`vision_bundle`, 153.90 kB).
-- `npm test` — 24 backend + 20 frontend tests pass.
+- `npm test` — 24 backend + 21 frontend tests pass.
 
 ### Manual / browser-level (not automated)
 

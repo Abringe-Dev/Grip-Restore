@@ -5,7 +5,7 @@ import StatCard from '../components/StatCard'
 import GestureCard from '../components/GestureCard'
 import { useAuth } from '../context/useAuth'
 import { listSessions } from '../api/sessions'
-import { getWeeklySummary } from '../data/sessionStore'
+import { formatDays, getWeeklySummary } from '../data/sessionStore'
 import './../styles/dashboard.css'
 
 const gestures = [
@@ -75,7 +75,7 @@ export default function Dashboard() {
           />
           <StatCard
             label="Best Streak"
-            value={`${summary.bestStreak} days`}
+            value={formatDays(summary.bestStreak)}
             caption="You&rsquo;re on a roll &mdash; keep it going!"
             tone="purple"
           />
