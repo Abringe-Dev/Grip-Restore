@@ -63,6 +63,39 @@
   text-align: center;
 }
 
+.practice-target {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--practice-color) 30%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--practice-color) 9%, var(--surface));
+  text-align: left;
+}
+
+.practice-target-emoji {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.practice-target-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.practice-target-label {
+  font-weight: 800;
+  font-size: var(--text-sm);
+  color: color-mix(in srgb, var(--practice-color) 70%, var(--ink));
+}
+
+.practice-target-hint {
+  font-size: var(--text-2xs);
+  color: var(--ink-soft);
+}
+
 .practice-status {
   min-height: 1.5em;
   font-family: var(--font-display);

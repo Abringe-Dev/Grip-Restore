@@ -56,6 +56,14 @@
   text-align: center;
 }
 
+.dashboard-start-kicker {
+  font-size: var(--text-2xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
 .dashboard-start-title {
   font-family: var(--font-display);
   font-weight: 800;
@@ -67,6 +75,14 @@
 .dashboard-start-sub {
   font-size: var(--text-sm);
   color: var(--ink-soft);
+}
+
+.dashboard-start-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
 .gesture-strip {
@@ -88,6 +104,46 @@
   gap: var(--space-4);
   flex-wrap: wrap;
   justify-content: center;
+}
+
+.gesture-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.gesture-link .gesture-card {
+  transition: transform var(--transition-fast), box-shadow var(--transition);
+}
+
+.gesture-link:hover .gesture-card {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
+}
+
+.gesture-link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+  border-radius: var(--radius-lg);
+}
+
+.gesture-link-label {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.gesture-link:hover .gesture-link-label {
+  text-decoration: underline;
 }
 
 .camera-hint {

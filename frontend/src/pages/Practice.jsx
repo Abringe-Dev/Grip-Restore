@@ -17,6 +17,12 @@ import './../styles/practice.css'
 
 const DEFAULT_GESTURE = GESTURES[0].key
 
+const GESTURE_HINTS = {
+  pinch: 'Thumb and index finger together',
+  fist: 'Fingers curled into a soft fist',
+  palm: 'All five fingers spread wide',
+}
+
 function savedFor(progress, gesture) {
   return progress?.find((row) => row.gesture === gesture) ?? null
 }
@@ -155,6 +161,18 @@ export default function Practice() {
           />
 
           <div className="practice-hold" aria-live="polite">
+            <div
+              className="practice-target"
+              style={{ '--practice-color': activeMeta.color }}
+            >
+              <span className="practice-target-emoji" aria-hidden="true">{activeMeta.emoji}</span>
+              <span className="practice-target-copy">
+                <span className="practice-target-label">Target · {activeMeta.label}</span>
+                <span className="practice-target-hint">
+                  {GESTURE_HINTS[selected] ?? 'Match the selected gesture'}
+                </span>
+              </span>
+            </div>
             <p className="practice-status" style={{ color: activeMeta.color }}>
               {statusCopy(practice, activeMeta.label, trackingStatus)}
             </p>

@@ -5,13 +5,14 @@ import StatCard from '../components/StatCard'
 import GestureCard from '../components/GestureCard'
 import { useAuth } from '../context/useAuth'
 import { listSessions } from '../api/sessions'
+import { buildWeeklyForecast } from '../data/analytics'
 import { formatDays, getWeeklySummary } from '../data/sessionStore'
 import './../styles/dashboard.css'
 
 const gestures = [
-  { emoji: '🤏🏻', label: 'Pinch', color: '#5B8DEF' },
-  { emoji: '✊🏻', label: 'Fist', color: '#8175D5' },
-  { emoji: '🖐🏻', label: 'Open Palm', color: '#3FAE7A' },
+  { key: 'pinch', emoji: '🤏🏻', label: 'Pinch', color: '#5B8DEF' },
+  { key: 'fist', emoji: '✊🏻', label: 'Fist', color: '#8175D5' },
+  { key: 'palm', emoji: '🖐🏻', label: 'Open Palm', color: '#3FAE7A' },
 ]
 
 export default function Dashboard() {
@@ -35,8 +36,12 @@ export default function Dashboard() {
   }, [])
 
   const summary = useMemo(() => getWeeklySummary(sessions ?? []), [sessions])
+  const forecast = useMemo(() => buildWeeklyForecast(sessions ?? []), [sessions])
   const remaining = Math.max(0, summary.sessionsGoal - summary.sessionsCompleted)
   const loading = sessions === null && !error
+  const focusCopy = forecast.focus.length > 0
+    ? forecast.focus.map((g) => `${g.label} ${g.accuracy}%`).join(' · ')
+    : 'balanced grip mix'
 
   return (
     <main className="dashboard-main">
@@ -84,19 +89,50 @@ export default function Dashboard() {
 
       <section className="dashboard-start">
         <div className="dashboard-start-card">
-          <h2 className="dashboard-start-title">Ready for today&rsquo;s session?</h2>
+          <p className="dashboard-start-kicker">Next session</p>
+          <h2 className="dashboard-start-title">
+            {loading ? 'Building your plan…' : `${forecast.durationMin} min · ${forecast.difficulty.label}`}
+          </h2>
           <p className="dashboard-start-sub">
-            A quick calibration, then a fun rhythm workout for your hands.
+            {loading
+              ? 'Reading your recent sessions to choose a comfortable next step.'
+              : forecast.hasData
+                ? `About ${forecast.predictedAccuracy}% expected · Focus: ${focusCopy}`
+                : 'Start with a balanced session. Your personal forecast unlocks after a few games.'}
           </p>
-          <Button onClick={() => navigate('/start-session')}>Start a session</Button>
+          <div className="dashboard-start-actions">
+            <Button
+              fullWidth={false}
+              onClick={() => navigate('/start-session', {
+                state: {
+                  durationMin: forecast.durationMin,
+                  difficulty: forecast.difficulty.key,
+                },
+              })}
+            >
+              Start this session
+            </Button>
+            <Button fullWidth={false} variant="ghost" onClick={() => navigate('/plan')}>
+              View week plan
+            </Button>
+          </div>
         </div>
       </section>
 
-      <section className="gesture-strip" aria-label="Gestures you will practice">
-        <p className="gesture-strip-title">Gestures you&rsquo;ll practice</p>
+      <section className="gesture-strip" aria-label="Practice one gesture">
+        <p className="gesture-strip-title">Practice one gesture</p>
         <div className="gesture-strip-row">
           {gestures.map((g) => (
-            <GestureCard key={g.label} {...g} />
+            <button
+              key={g.key}
+              type="button"
+              className="gesture-link"
+              aria-label={`Practice ${g.label}`}
+              onClick={() => navigate('/practice', { state: { gesture: g.key } })}
+            >
+              <GestureCard emoji={g.emoji} label={g.label} color={g.color} />
+              <span className="gesture-link-label">Practice</span>
+            </button>
           ))}
         </div>
       </section>
