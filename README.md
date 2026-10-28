@@ -14,6 +14,10 @@ A web-based rehabilitation game for stroke survivors and arthritis patients. Gri
 - **Calibration** — 3-step hand calibration (Pinch, Fist, Open Palm)
 - **Gameplay** — gesture icons fall down three lanes; match each gesture when it reaches the target line
 - **Live scoring** — hits, misses, accuracy, sound feedback, and a 3-2-1 countdown
+- **Per-gesture accuracy** — every session records hits and misses for Pinch, Fist, and Open Palm
+- **Practice Mode** — focus on one grip with live hold status; accuracy, streaks, and best streak are saved to your account, and three consecutive successes suggest a play session
+- **Weekly plan** — a 7-day, 2–4 session forecast on alternating days, built from your last five sessions and each grip's last three sessions; every recommendation explains why
+- **How to Play** — a step-by-step guide with a one-time first-visit prompt (remembered per user on this browser)
 - **History** — weekly charts and the most recent sessions, loaded from your account
 
 ## Tech Stack
@@ -34,7 +38,7 @@ Grip_Restore/
 │  │  ├─ db/             # SQLite open + migrations
 │  │  ├─ http/           # cookie helpers
 │  │  ├─ middleware/     # CSRF, rate limits, validation
-│  │  ├─ routes/         # /auth and /api/sessions
+│  │  ├─ routes/         # /auth, /api/sessions, /api/practice
 │  │  ├─ validation/     # zod schemas
 │  │  ├─ app.js          # Express wiring
 │  │  ├─ config.js       # env parsing + prod fail-closed checks
@@ -44,12 +48,13 @@ Grip_Restore/
 ├─ docs/                 # implementation guide
 ├─ frontend/
 │  ├─ src/
-│  │  ├─ api/            # typed-ish fetch wrapper + auth/session calls
-│  │  ├─ components/     # shared UI (Navbar, WebcamCard, Charts, …)
+│  │  ├─ api/            # fetch wrapper + auth/session/practice calls
+│  │  ├─ components/     # shared UI (Navbar, WebcamCard, GuideContent, …)
 │  │  ├─ context/        # auth, webcam, hand-tracking providers + hooks
-│  │  ├─ data/           # pure progress derivations (+ tests)
-│  │  ├─ game/           # pure gameplay engine, sounds (+ tests)
-│  │  ├─ pages/          # one file per route
+│  │  ├─ data/           # pure progress/forecast/guide derivations (+ tests)
+│  │  ├─ game/           # pure gameplay engine, per-gesture stats, sounds (+ tests)
+│  │  ├─ pages/          # one file per route (incl. Practice, WeeklyPlan)
+│  │  ├─ practice/       # pure practice state machine + config (+ tests)
 │  │  ├─ styles/         # tokens + per-page CSS
 │  │  └─ vision/         # MediaPipe loader, classifier, skeleton renderer
 │  └─ vite.config.js     # dev proxy for /auth and /api
@@ -137,8 +142,10 @@ With no SMTP configured, verification and reset emails are printed to the API co
 | `POST` | `/auth/reset-password` | — | Set a new password; revokes all sessions |
 | `POST` | `/auth/verify-email` | — | Consume a verification token |
 | `POST` | `/auth/resend-verification` | — | Issue a new verification token (invalidates the old one) |
-| `GET` | `/api/sessions` | cookie | The signed-in user's sessions, newest first |
-| `POST` | `/api/sessions` | cookie | Save a completed session (accuracy recomputed server-side) |
+| `GET` | `/api/sessions` | cookie | The signed-in user's sessions, newest first, including `gestureStats` |
+| `POST` | `/api/sessions` | cookie | Save a completed session with optional `gestureStats` (accuracy recomputed server-side) |
+| `GET` | `/api/practice` | cookie | Per-gesture practice attempts, accuracy, and streaks (zero-filled for all three grips) |
+| `POST` | `/api/practice/attempts` | cookie | Record one practice attempt as `{ gesture, success }`; updates saved streaks |
 
 Rate limits: login 10 / 15 min per IP+email, register 5 / hour, recovery 5 / hour. Five failed logins lock the account for 15 minutes. All responses use generic messages to avoid account enumeration.
 
@@ -152,7 +159,14 @@ Rate limits: login 10 / 15 min per IP+email, register 5 / hour, recovery 5 / hou
 
 ## Camera architecture
 
-A single `MediaStream` lives in `WebcamProvider`, above the keyed `<Routes>`, and is reused across Setup → Calibration → Game. It is released when the path leaves the session flow or on logout. Camera access requires `localhost` or HTTPS.
+A single `MediaStream` lives in `WebcamProvider`, above the keyed `<Routes>`, and is reused across Setup → Calibration → Game, or while visiting Practice. It is released when the path leaves the session flow (`/setup`, `/calibration`, `/game`, `/practice`) or on logout. Camera access requires `localhost` or HTTPS.
+
+## Practice, forecasts, and the guide
+
+- **Practice rules:** an attempt starts when the selected grip is acquired. Holding it continuously for 2 seconds scores a success; releasing early or switching grip fails the attempt, and the grip must be released before the next attempt starts. Three consecutive successes show a "start a play session" suggestion once per grip per visit. Progress is persisted through `/api/practice`.
+- **Forecast rules:** the next-session estimate uses the last five sessions and a capped trend adjustment; the plan looks at each grip's last three sessions. Up to two grips below 75% accuracy with at least three attempts get extra focus. Difficulty steps up only when three or more recent sessions average 85%+ **and** the last three are all 80%+; below 60% eases back. The plan schedules 2 sessions when recent accuracy is low, 4 when the high-accuracy readiness rule is met, and 3 otherwise. Sessions land on alternating days: tomorrow, +3, +5, and optionally +7 days.
+- **Guide state:** the first-visit walkthrough is stored under `grip-restore:guide-seen:<userId>` in `localStorage`, so it appears once per user on that browser. The full guide remains available at `/instructions` and in the navbar.
+- **Assumptions:** the forecast is directional exercise guidance, not a clinical outcome prediction. Per-gesture session data starts with sessions saved after this revision; older rows simply show no grip breakdown.
 
 ## Tests
 
@@ -160,8 +174,8 @@ A single `MediaStream` lives in `WebcamProvider`, above the keyed `<Routes>`, an
 npm test
 ```
 
-- Backend (`backend/test/`): registration + verification, login/lockout, password reset + session revocation, per-user session isolation, validation, and security headers.
-- Frontend: gameplay engine and pure progress derivations.
+- Backend (`backend/test/`): registration + verification, login/lockout, password reset + session revocation, per-user session and practice isolation, validation, and security headers. 28 tests.
+- Frontend: gameplay engine, per-gesture stats, progress derivations, forecast rules, practice state machine, guide storage, and recommendation logic. 38 tests.
 
 ## Known limitations
 
@@ -170,4 +184,8 @@ npm test
 - Leaving `/game` through the Navbar or browser Back does not save partial progress; only **Quit session** does.
 - Refreshing `/game` loses duration/difficulty/calibration route state and restarts with defaults.
 - Calibration data is stored with sessions but does not influence gameplay yet.
+- Practice only records an attempt after the target grip is acquired; time spent showing no hand is not counted.
+- Forecasts are guidance, not medical predictions; confidence rises with more saved sessions.
+- The first-run guide is remembered per browser profile, not across devices.
+- Per-gesture session stats are empty for sessions saved before this revision.
 - `node:sqlite` is still flagged experimental in Node 24 (warnings are suppressed in the npm scripts).

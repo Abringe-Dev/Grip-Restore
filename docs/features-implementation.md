@@ -4,7 +4,7 @@ How every user-facing feature is implemented, which files own it, and where the 
 
 - **Scope:** `frontend/` (game + UI) and `backend/` (auth, email verification, per-user persistence).
 - **Status:** full-stack — real accounts, httpOnly cookie sessions, SQLite storage, email verification required before login.
-- **Verification snapshot:** backend `npm test` 24/24, frontend `npm test` 21/21, `npm run lint` clean, `npm run build` OK, 26/26 auth/session checks plus 13/13 account-management checks through the Vite proxy (register → verify → login → save/list → reset → change password → sign out everywhere).
+- **Verification snapshot:** backend `npm test` 28/28, frontend `npm test` 38/38, `npm run lint` clean, `npm run build` OK. The earlier 26 auth/session checks and 13 account-management proxy checks were not re-run for this revision.
 
 ---
 
@@ -22,7 +22,11 @@ How every user-facing feature is implemented, which files own it, and where the 
    - [F7 Gesture classification](#f7-gesture-classification)
    - [F8 Calibration](#f8-calibration)
    - [F9 Gameplay engine](#f9-gameplay-engine)
-   - [F10 Persistence and History](#f10-persistence-and-history)
+    - [F10 Persistence and History](#f10-persistence-and-history)
+    - [F11 Per-gesture session stats](#f11-per-gesture-session-stats)
+    - [F12 Practice Mode](#f12-practice-mode)
+    - [F13 Weekly forecast and plan](#f13-weekly-forecast-and-plan)
+    - [F14 How to Play and first-run guide](#f14-how-to-play-and-first-run-guide)
 4. [Backend, auth, and security](#4-backend-auth-and-security)
 5. [Cross-cutting concerns](#5-cross-cutting-concerns)
 6. [Testing and verification](#6-testing-and-verification)
@@ -61,11 +65,11 @@ Grip_Restore/
 │  │  ├─ db/                       # openDatabase + user_version migrations
 │  │  ├─ http/cookies.js           # gr_session / __Host-gr_session
 │  │  ├─ middleware/               # CSRF, rate limits, zod validation
-│  │  ├─ routes/                   # auth.js, sessions.js
+│  │  ├─ routes/                   # auth.js, sessions.js, practice.js
 │  │  ├─ validation/schemas.js     # strict request schemas
 │  │  ├─ app.js / server.js / config.js / mailer.js
 │  │  └─ data/                     # SQLite DB (gitignored)
-│  ├─ test/                        # helpers + auth/sessions/security suites
+│  ├─ test/                        # helpers + auth/sessions/practice/security suites
 │  └─ .env.example
 ├─ docs/                           # this guide
 └─ frontend/
@@ -75,10 +79,11 @@ Grip_Restore/
       ├─ components/               # shared UI (Navbar, WebcamCard, Charts, …)
       ├─ constants/sessionPaths.js # SESSION_PATHS
       ├─ context/                  # auth, webcam, hand-tracking providers + hooks
-      ├─ data/                     # pure progress derivations (+ tests)
-      ├─ game/                     # pure gameplay engine, sounds (+ tests)
+      ├─ data/                     # pure progress, forecast, guide logic (+ tests)
+      ├─ game/                     # pure gameplay engine, gesture stats, sounds (+ tests)
       ├─ layouts/AppLayout.jsx
-      ├─ pages/                    # one file per route
+      ├─ pages/                    # one file per route (incl. Practice, WeeklyPlan)
+      ├─ practice/                 # pure practice state machine + config (+ tests)
       ├─ styles/                   # tokens + per-page CSS
       └─ vision/                   # MediaPipe loader, classifier, skeleton renderer
 ```
@@ -134,11 +139,14 @@ The trade-off is that providers must release resources themselves. `WebcamProvid
 | `/setup` | `Setup` | `RequireAuth` + `AppLayout` |
 | `/calibration` | `Calibration` | `RequireAuth` + `AppLayout` |
 | `/game` | `Gameplace` | `RequireAuth` + `AppLayout` |
+| `/practice` | `Practice` | `RequireAuth` + `AppLayout` |
+| `/plan` | `WeeklyPlan` | `RequireAuth` + `AppLayout` |
+| `/instructions` | `Instructions` | `RequireAuth` + `AppLayout` |
 | `/history` | `History` | `RequireAuth` + `AppLayout` |
 | `/account` | `Account` | `RequireAuth` + `AppLayout` |
 | `*` | redirect → `/dashboard` | — |
 
-`SESSION_PATHS = ['/setup', '/calibration', '/game']` (`constants/sessionPaths.js:1`) is the single source of truth for "camera should stay on".
+`SESSION_PATHS = ['/setup', '/calibration', '/game', '/practice']` (`constants/sessionPaths.js:1`) is the single source of truth for "camera should stay on". `AppLayout` also renders `FirstRunGuide`, which opens a native `<dialog>` once per user/browser.
 
 ### End-to-end data flow
 
@@ -148,13 +156,17 @@ flowchart LR
   B -- forwards state --> C[Calibration]
   C -- state: + calibration[] --> D[Gameplace]
   D -- currentGesture --> E[Hit / Miss resolution]
-  E --> F[summarizeGame]
+  E --> F[summarizeGame + gestureStats]
   F --> G[POST /api/sessions]
   G --> H[(SQLite game_sessions)]
   H --> I[GET /api/sessions]
   I --> J[History derivations]
   I --> K[Dashboard summary]
+  I --> P[buildWeeklyForecast → /plan]
+  Q[Practice] -- hold/release events --> R[POST /api/practice/attempts]
+  R --> T[(SQLite practice_progress)]
   H -. scoped by .-> S[session cookie → user_id]
+  T -. scoped by .-> S
 ```
 
 ### Tracking pipeline
@@ -241,7 +253,7 @@ There is no global session-config store. Configuration travels in React Router `
 **Files:** `components/RequireAuth.jsx`, `layouts/AppLayout.jsx`, `components/Navbar.jsx`, `components/PageTransition.jsx`, `App.jsx`.
 
 - `RequireAuth` renders a full-page `Loading…` status while `AuthProvider` resolves `GET /auth/me`, then redirects unauthenticated users to `/login` with `state={{ from: location }}` (`RequireAuth.jsx`). This prevents the login page flashing before the cookie session is known.
-- Authenticated pages render inside `AppLayout`: `Navbar` + `<Outlet />` (`AppLayout.jsx:4-10`).
+- Authenticated pages render inside `AppLayout`: `Navbar` + `<Outlet />` + `FirstRunGuide` (`AppLayout.jsx`).
 - Every page is wrapped in `PageTransition`, a motion div with enter/center/exit states: `opacity/x/scale`, 0.32 s, cubic-bezier `[0.4, 0, 0.2, 1]` (`PageTransition.jsx:3-17`).
 - `AnimatePresence mode="wait"` plus `<Routes key={location.pathname}>` (`App.jsx:21-22`) ensures the old page finishes its exit animation before the new page mounts. This is also why each route gets a fresh component state on navigation — History re-reads storage on every visit.
 - `MotionConfig reducedMotion="user"` (`App.jsx:106`) plus the global `prefers-reduced-motion` block (`tokens.css:104-112`) disable movement for users who request it.
@@ -280,6 +292,7 @@ All numbers are **derived**, never stored: `getWeeklySummary` is pure and accept
 - Option buttons use `aria-pressed` to expose selection state.
 - **Recommended difficulty:** on mount the page fetches `/api/sessions` and calls `getRecommendedDifficulty(rows)` (`data/sessionStore.js`). It averages the five most recent sessions: ≥85% nudges one level up, <60% one level down, otherwise it keeps the last chosen difficulty (capped at Hard). The suggestion preselects a button and is announced with a short reason; once the player taps a difficulty it is never overridden. With no history it suggests Easy. A failed fetch silently keeps the default.
 - "Begin Session" passes both selections into route state.
+- When arriving from `/plan`, `location.state` prefills duration and difficulty; a prefilled difficulty counts as an explicit pick, so the recommendation does not override the plan.
 - `SESSION_DURATIONS = [5, 10]` and `DEFAULT_DURATION_MIN = 5` live in `game/session.js:1-2`; the game validates against that list so arbitrary state values cannot create a non-standard session (`Gameplace.jsx:145-147`).
 
 ---
@@ -483,7 +496,7 @@ The render pass filters notes: resolved hits disappear; unresolved notes render 
 
 #### Storage model
 
-Sessions live in the `game_sessions` table, scoped by `user_id` with an index on `(user_id, created_at)`. The frontend no longer reads or writes `localStorage`; legacy prototype keys are ignored. Old browser-only accounts are **not** migrated — they never stored a password hash, so there is nothing to import into a real account.
+Sessions live in the `game_sessions` table, scoped by `user_id` with an index on `(user_id, created_at)`. Migration v2 adds `gesture_stats` (JSON) for per-grip hits/misses. The frontend does not store progress in `localStorage`; only the first-run guide flag is device-local (keyed per user). Old browser-only accounts are **not** migrated — they never stored a password hash, so there is nothing to import into a real account.
 
 #### Save path
 
@@ -492,11 +505,15 @@ Sessions live in the `game_sessions` table, scoped by `user_id` with an index on
 ```js
 {
   durationMin, difficulty, hits, misses,
-  gesture: 'Mixed', gestures: [...], calibration
+  gesture: 'Mixed', gestures: [...],
+  gestureStats: { pinch: { hits, misses }, fist: { ... }, palm: { ... } },
+  calibration
 }
 ```
 
-- zod strict validation rejects unknown keys and out-of-range values (`validation/schemas.js`).
+- `Gameplace` updates an immutable `gestureStats` ref on every hit/miss (`game/gestureStats.js`) and resets it at play start.
+- zod strict validation rejects unknown keys, unknown gestures, and out-of-range values (`validation/schemas.js`).
+- `gestureStats` is optional; older clients/rows read as `{}` and the week plan simply ignores them.
 - The server **recomputes accuracy** from `hits`/`misses` and ignores any client-supplied value (`routes/sessions.js`).
 - Every insert uses `req.user.id` from the resolved session; the client cannot choose a user id.
 - On failure the result overlay shows the API message. Finishing schedules the History navigation immediately; quitting awaits the save so the next page is fresh.
@@ -506,8 +523,8 @@ Sessions live in the `game_sessions` table, scoped by `user_id` with an index on
 ```js
 {
   id, dateISO, durationMin,
-  gesture, gestures[], accuracy,
-  difficulty, hits, misses,
+  gesture, gestures[], gestureStats,
+  accuracy, difficulty, hits, misses,
   calibration
 }
 ```
@@ -543,6 +560,72 @@ Rows stored before gameplay scoring still load: `hits`/`misses` are `null`, and 
 
 ---
 
+### F11 Per-gesture session stats
+
+**Files:** `game/gestureStats.js` (+ test), `pages/Gameplace.jsx`, `backend/src/db/migrate.js` (v2), `backend/src/validation/schemas.js`, `backend/src/routes/sessions.js`, `backend/test/sessions.test.js`.
+
+- `createGestureStats()` returns zeroed counters for `pinch`, `fist`, and `palm`; `recordGestureResult(stats, gesture, result)` is pure and returns a new object, ignoring unknown gestures/results.
+- `Gameplace` keeps the counters in a ref, updates them inside the 50 ms resolution loop for every hit/miss, resets them on play start, and includes them in the save payload.
+- The API persists `gesture_stats` as JSON and returns `gestureStats` on every session. Validation uses a strict fixed-key object, so unknown gestures or negative counts are rejected. Legacy rows map to `{}`.
+- Tests cover immutable counting, unknown inputs, validation failures, round-tripping, and legacy rows.
+
+### F12 Practice Mode
+
+**Files:** `practice/practiceConfig.js`, `practice/practiceEngine.js` (+ test), `pages/Practice.jsx`, `styles/practice.css`, `api/practice.js`, `backend/src/routes/practice.js`, `backend/src/db/migrate.js` (v3), `backend/test/practice.test.js`.
+
+**Engine rules** (`tickPractice(state, gesture, deltaMs)`):
+
+| Situation | Result |
+| --- | --- |
+| Target grip acquired | Attempt starts; status becomes `correct`; hold accumulates |
+| Hold reaches 2000 ms | One success event; attempt/success/streak counters advance; bar stays full until release |
+| Grip released or changed before 2000 ms | One failure event; current streak resets; best streak survives |
+| No hand | `not-detected` |
+| A different grip | `almost` |
+| Same grip still held after success | No new attempt; release is required first |
+
+- Constants: `PRACTICE_TICK_MS = 100`, `PRACTICE_HOLD_MS = 2000`, `PRACTICE_SUGGEST_AFTER_STREAK = 3` (`practiceConfig.js`).
+- `Practice.jsx` runs the 100 ms interval only while tracking is active, uses `useEffectEvent` for the latest gesture, and posts completed attempts immediately.
+- Saved progress loads from `GET /api/practice`; each POST returns the updated row. The sidebar displays all three grips, saved accuracy, current/best streak, and switches target without navigating.
+- After three consecutive successes, a suggestion card offers `/start-session`; it is shown at most once per grip per visit (`suggestedRef` Set). Dismissing keeps the current streak going without repeating the prompt.
+- The backend keeps one row per `(user_id, gesture)` with CHECK constraints, computes accuracy from counts, and scopes every query by `req.user.id` in a transaction. GET zero-fills all three grips; POST validates `{ gesture, success }` strictly.
+- `/practice` is in `SESSION_PATHS`, so the camera stream and tracking loop stay alive while the user navigates into it, then stop on leave.
+
+### F13 Weekly forecast and plan
+
+**Files:** `data/analytics.js` (+ test), `pages/WeeklyPlan.jsx`, `styles/weekly-plan.css`, `pages/StartSession.jsx`, `pages/Practice.jsx`.
+
+`buildWeeklyForecast(sessions, now)` is pure and returns summary cards, explanations, 7 day entries, and planned sessions.
+
+| Rule | Behavior |
+| --- | --- |
+| Overall window | Last 5 valid sessions |
+| Per-grip window | Last 3 sessions containing stats for that grip |
+| Trend | Recent average minus previous 5-session average; forecast adjustment is half the delta, capped at ±5 points |
+| Forecast | Recent average + adjustment, clamped 0–100; label `Likely strong` ≥85, `Likely steady` ≥70, `Likely mixed` ≥55, otherwise `Likely challenging` |
+| Focus | Up to 2 grips below 75% with ≥3 attempts, lowest first; otherwise rotate all three |
+| Difficulty up | ≥3 recent sessions, average ≥85, and all last three ≥80; steps up one level |
+| Difficulty down | Recent average <60; steps down one level |
+| Session count | 2 when recent average <60; 4 when the step-up readiness rule passes; otherwise 3 |
+| Duration | 5 minutes for no data/low accuracy; 10 otherwise |
+| Dates | Next 7 days from tomorrow; sessions on +1, +3, +5 and optionally +7 days |
+| No data | 3 Easy 5-minute balanced sessions plus an explanation that the baseline will adapt |
+
+- The plan page shows forecast/next-session, focus, and planned-session cards, an explanation list, and seven day cards with rest days. Session actions deep-link to `/start-session` with prefilled duration/difficulty (`StartSession` now reads route state) or `/practice` with the focus grip.
+- Confidence is `high` for 5 recent sessions, `medium` for 3–4, `low` otherwise. The page explicitly presents forecasts as guidance, not a promised score.
+
+### F14 How to Play and first-run guide
+
+**Files:** `components/GuideContent.jsx`, `pages/Instructions.jsx`, `components/FirstRunGuide.jsx`, `data/guide.js` (+ test), `layouts/AppLayout.jsx`, `styles/guide.css`.
+
+- `GuideContent` has six sections: camera setup, the three grips, a play session, practice, the weekly plan, and safety. It is reused at `/instructions` and in the modal.
+- `FirstRunGuide` renders a native `<dialog>` (`showModal`) inside `AppLayout`, so it appears on the first authenticated page for a user. Escape and backdrop clicks dismiss it; the close button is focusable and labelled.
+- Seen state is stored per user at `grip-restore:guide-seen:<userId>`. Storage reads/writes are wrapped in `try/catch`; if storage is unavailable the guide falls back to showing.
+- “Read the full guide” marks the prompt seen and navigates to `/instructions`; “Got it” only dismisses. The navbar exposes **How to Play** at all times.
+- Tests cover key namespacing, per-user isolation, and storage failure behavior.
+
+---
+
 ## 4. Backend, auth, and security
 
 ### Runtime and configuration
@@ -552,7 +635,7 @@ Rows stored before gameplay scoring still load: `hits`/`misses` are `null`, and 
 - `server.js` loads `backend/.env` when present (`--env-file-if-exists`) and closes the DB on `SIGINT`/`SIGTERM`.
 - Database path defaults to `backend/data/grip-restore.db` (ignored by git).
 
-### Schema (migration v1)
+### Schema (migrations v1–v3)
 
 `PRAGMA user_version` drives forward-only migrations (`db/migrate.js`).
 
@@ -562,9 +645,10 @@ Rows stored before gameplay scoring still load: `hits`/`misses` are `null`, and 
 | `auth_sessions` | server-side sessions | hashed token, `user_id` FK, `expires_at`, `last_seen_at` |
 | `email_verification_tokens` | one active verification token | SHA-256 hash, `expires_at` |
 | `password_reset_tokens` | one active reset token | SHA-256 hash, `expires_at`, used timestamp |
-| `game_sessions` | progress | `user_id` FK, index on `(user_id, created_at)` |
+| `game_sessions` | progress | `user_id` FK, index on `(user_id, created_at)`, `gesture_stats` JSON (v2) |
+| `practice_progress` | per-grip practice totals | PK `(user_id, gesture)`, gesture CHECK, non-negative counters, FK cascade (v3) |
 
-Foreign keys cascade on user deletion.
+Foreign keys cascade on user deletion. Migration v2 adds `gesture_stats TEXT NOT NULL DEFAULT '{}'`; v3 creates `practice_progress` with attempts/successes/current/best streak and `updated_at`.
 
 ### Request lifecycle
 
@@ -647,29 +731,32 @@ Foreign keys cascade on user deletion.
 
 ### Automated
 
-`npm test` at the root runs the backend suites (**24 tests**) and the frontend suites (**21 tests**).
+`npm test` at the root runs the backend suites (**28 tests**) and the frontend suites (**38 tests**).
 
 | Suite | Coverage |
 | --- | --- |
-| `backend/test/auth.test.js` (12) | Register → verify → login, duplicate email, unverified login (`EMAIL_NOT_VERIFIED`), invalid credentials, logout, `/auth/me`, forgot/reset (including session revocation), resend invalidating the previous token, change-password (current-password check, other sessions revoked, current kept), logout-all |
-| `backend/test/sessions.test.js` (3) | Auth required; per-user isolation; server-recomputed accuracy; validation; persisted ordering |
-| `backend/test/security.test.js` (7) | Production cookie flags (`__Host-`, `Secure`, `HttpOnly`, `SameSite`); dev cookie; helmet/CSP headers; foreign-origin rejection; body-size limit; password pepper behavior; quoted emails treated literally (SQL injection) |
+| `backend/test/auth.test.js` (13) | Register → verify → login, duplicate email, unverified login (`EMAIL_NOT_VERIFIED`), invalid credentials, logout, `/auth/me`, forgot/reset (including session revocation), resend invalidating the previous token, change-password (current-password check, other sessions revoked, current kept), logout-all, persistence across restart |
+| `backend/test/sessions.test.js` (4) | Auth required; per-user isolation; server-recomputed accuracy; strict validation (including gesture stats); persisted ordering; legacy rows map to empty stats |
+| `backend/test/practice.test.js` (3) | Auth + zero-filled stats; accuracy/streak updates and failure reset; validation + per-user isolation |
+| `backend/test/security.test.js` (8) | Production cookie flags (`__Host-`, `Secure`, `HttpOnly`, `SameSite`); dev cookie; helmet/CSP headers; foreign-origin rejection; body-size limit; password pepper behavior; rate limiting; quoted emails treated literally (SQL injection); scrypt storage; registration validation |
 | `frontend/src/game/fallingGame.test.js` (11) | Difficulty ordering and fallback; consistent 20% hit band; schedule lead-in, no repeated gestures, gaps within bounds; `noteProgress` clamping; visibility/hit/miss boundaries; summary math; tick < hardest window |
+| `frontend/src/game/gestureStats.test.js` (3) | Zeroed lanes; immutable hit/miss counting; unknown gesture/result handling |
 | `frontend/src/data/sessionStore.test.js` (10) | History mapping (difficulty/hits/misses/legacy rows); 7-week bucketing; carry-forward accuracy trend; weekly summary; best streak; Monday-start week; difficulty recommendation (new account, step up/down, hold, Hard cap, recency window); `formatDays` pluralization |
+| `frontend/src/data/analytics.test.js` (6) | Baseline week; strong step-up and 4-session schedule; step-up guard on a dip; low-accuracy step-down/2 sessions; per-grip 3-session windows/focus; forecast date offsets and rest days |
+| `frontend/src/data/guide.test.js` (2) | Per-user storage namespacing; unavailable-storage fallback |
+| `frontend/src/practice/practiceEngine.test.js` (6) | Idle/almost states; exact 2 s success once; early release/wrong-grip failure and streak reset; release-before-next-attempt; 3-success suggestion threshold |
 
 Backend tests spin up the real Express app on an ephemeral port against a temporary SQLite file (`backend/test/helpers.js`). Frontend tests use a fixed rng and injected `now`.
 
 ### End-to-end smoke (local, repeatable)
 
-26 auth/session checks through the Vite dev proxy (`:5173` → `:3001`) pass with real cookies: anonymous `/auth/me` → 401, register → dev verify link, verify, login sets `gr_session`, `/auth/me`, create/list sessions, per-user auth guard, wrong password, forgot/reset, old session revoked, new password works, old password rejected, foreign-origin POST blocked, and all public SPA routes return the app shell.
-
-A further 13 checks cover account management: wrong current password rejected, change-password succeeds, the initiating device stays signed in, the second device is revoked, the old password fails, the new password works, sign-out-everywhere clears both devices, and `/account` serves the SPA.
+The prior revision's 26 auth/session checks and 13 account-management proxy checks were not re-run for this revision. The new practice and forecast behavior is covered by the automated suites above; the new pages still need a camera-enabled browser pass.
 
 ### Static
 
 - `npm run lint` — ESLint recommended + react-hooks + react-refresh: clean.
-- `npm run build` — Vite production build: OK, 490 modules, MediaPipe emitted as a separate chunk (`vision_bundle`, 153.90 kB).
-- `npm test` — 24 backend + 21 frontend tests pass.
+- `npm run build` — Vite production build: OK, 506 modules, MediaPipe emitted as a separate chunk (`vision_bundle`, 153.90 kB).
+- `npm test` — 28 backend + 38 frontend tests pass.
 
 ### Manual / browser-level (not automated)
 
@@ -680,7 +767,11 @@ These depend on a real camera and remain verified only by inspection:
 - Live skeleton alignment on the mirrored, cropped preview.
 - Calibration hold progress and skip handoff.
 - Save-on-finish / save-on-quit appearing as the top row in History.
-- StrictMode double-mount behavior and responsive breakpoints (900 px / 640 px).
+- Practice hold bar, early-release failure, streak reset, saved progress refresh, and the once-per-grip-after-3-successes suggestion.
+- Per-gesture stats reaching History's API rows and the weekly forecast.
+- Forecast day cards deep-linking into a prefilled Start Session and focused Practice.
+- First-run `<dialog>` appearing only until dismissed, Escape/backdrop dismissal, and the full guide rendering at `/instructions`.
+- StrictMode double-mount behavior and responsive breakpoints (900 px / 640 px / 700 px).
 
 ---
 
@@ -697,6 +788,10 @@ These depend on a real camera and remain verified only by inspection:
 | Refresh | Refreshing `/game` loses duration/difficulty/calibration route state and restarts with defaults (5 min, Easy, no calibration). |
 | Quit duration | Wall-clock based, so paused time is included; minimum 1 minute. |
 | Calibration | Results are persisted but do not influence gameplay yet. |
+| Practice | Attempts count only after the target grip is acquired; time with no hand is ignored. There is no undo for an accidental attempt. |
+| Forecast | Directional guidance, not a clinical prediction. It needs saved sessions and only per-gesture data from sessions recorded after migration v2. |
+| Weekly plan | Dates are local and start tomorrow; plans do not auto-reschedule if a day is skipped. |
+| First-run guide | Seen state is per browser profile, not synced across devices. |
 | Tracking health | If the camera stream stalls while `trackingStatus` still reports `active`, notes can miss. There is no stream-level health signal. |
 | Auth redirect | `RequireAuth` passes `state.from`, but Login still redirects to `/dashboard`. |
 | Accessibility testing | Semantics are implemented, but no screen-reader or axe audit has been run. |
@@ -718,7 +813,12 @@ These depend on a real camera and remain verified only by inspection:
 | `862d9f6` | Prompt-window gameplay engine (superseded) |
 | `cca5ed3` | Falling-gesture gameplay, difficulty, scoring, tests |
 | `ed78b5e` | Backend API, secure auth, email verification, reset flow, server-backed sessions |
-| _pending_ | **Current** — account settings: change password and sign out everywhere |
+| `e103e19` | Per-gesture accuracy stored with game sessions |
+| `2a9def2` | Per-gesture Practice Mode with saved progress |
+| `17ab1bd` | Play-session suggestion after practice success |
+| `54ef75c` | Explainable weekly session forecast/plan |
+| `638b31d` | How to Play page and first-run guide |
+| _pending_ | **Current** — docs update for practice, forecasts, and guide |
 
 ---
 
@@ -726,7 +826,7 @@ These depend on a real camera and remain verified only by inspection:
 
 | Constant | Value | Where |
 | --- | --- | --- |
-| `SESSION_PATHS` | `['/setup', '/calibration', '/game']` | `constants/sessionPaths.js:1` |
+| `SESSION_PATHS` | `['/setup', '/calibration', '/game', '/practice']` | `constants/sessionPaths.js:1` |
 | `SESSION_DURATIONS` | `[5, 10]` minutes | `game/session.js:1` |
 | `DEFAULT_DURATION_MIN` | `5` | `game/session.js:2` |
 | `GESTURES` | pinch / fist / palm (colors `#5B8DEF`, `#8175D5`, `#3FAE7A`) | `game/session.js:5-9` |
@@ -743,6 +843,15 @@ These depend on a real camera and remain verified only by inspection:
 | `FPS_WINDOW_MS` | `500` | `context/HandTrackingProvider.jsx:10` |
 | MediaPipe load timeout | `15000` ms | `vision/handLandmarker.js:7` |
 | Calibration `HOLD_MS` | `2000` ms | `pages/Calibration.jsx:16` |
+| Practice hold | `2000` ms | `practice/practiceConfig.js` |
+| Practice tick | `100` ms | `practice/practiceConfig.js` |
+| Practice suggestion streak | `3` successes | `practice/practiceConfig.js` |
+| Forecast overall window | last `5` sessions | `data/analytics.js` |
+| Forecast per-grip window | last `3` sessions | `data/analytics.js` |
+| Weak-grip rule | `<75%` with `≥3` attempts, max `2` grips | `data/analytics.js` |
+| Forecast trend cap | `±5` points (half the delta) | `data/analytics.js` |
+| Plan days | `+1, +3, +5, +7` from tomorrow | `data/analytics.js` |
+| Guide storage | `grip-restore:guide-seen:<userId>` | `data/guide.js` |
 | `RESULT_NAV_MS` | `2600` ms | `pages/Gameplace.jsx:31` |
 | `FEEDBACK_MS` | `650` ms | `pages/Gameplace.jsx:30` |
 | Weekly goal | `8` sessions | `data/sessionStore.js:6` |
