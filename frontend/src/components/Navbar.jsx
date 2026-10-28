@@ -6,6 +6,7 @@ import './Navbar.css'
 const links = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/start-session', label: 'Start Session' },
+  { to: '/practice', label: 'Practice' },
   { to: '/history', label: 'History' },
   { to: '/account', label: 'Account' },
 ]

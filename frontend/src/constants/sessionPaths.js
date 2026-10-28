@@ -1,1 +1,1 @@
-export const SESSION_PATHS = ['/setup', '/calibration', '/game']
+export const SESSION_PATHS = ['/setup', '/calibration', '/game', '/practice']

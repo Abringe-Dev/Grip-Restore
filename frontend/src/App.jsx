@@ -15,6 +15,7 @@ import StartSession from './pages/StartSession'
 import Setup from './pages/Setup'
 import Calibration from './pages/Calibration'
 import Gameplace from './pages/Gameplace'
+import Practice from './pages/Practice'
 import History from './pages/History'
 import Account from './pages/Account'
 
@@ -110,6 +111,14 @@ function AnimatedRoutes() {
             element={
               <PageTransition>
                 <Gameplace />
+              </PageTransition>
+            }
+          />
+          <Route
+            path="practice"
+            element={
+              <PageTransition>
+                <Practice />
               </PageTransition>
             }
           />

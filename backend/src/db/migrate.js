@@ -71,6 +71,23 @@ const MIGRATIONS = [
         ADD COLUMN gesture_stats TEXT NOT NULL DEFAULT '{}';
     `,
   },
+  {
+    version: 3,
+    // One row per user/gesture; counts and streaks survive reloads so the
+    // practice screen can celebrate progress without trusting client state.
+    sql: `
+      CREATE TABLE practice_progress (
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        gesture TEXT NOT NULL CHECK (gesture IN ('pinch', 'fist', 'palm')),
+        attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+        successes INTEGER NOT NULL DEFAULT 0 CHECK (successes >= 0),
+        current_streak INTEGER NOT NULL DEFAULT 0 CHECK (current_streak >= 0),
+        best_streak INTEGER NOT NULL DEFAULT 0 CHECK (best_streak >= 0),
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, gesture)
+      );
+    `,
+  },
 ]
 
 export function migrate(db) {

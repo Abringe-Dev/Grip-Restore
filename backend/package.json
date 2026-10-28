@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning --watch src/server.js",
     "start": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/server.js",
-    "test": "node --disable-warning=ExperimentalWarning --test test/auth.test.js test/sessions.test.js test/security.test.js"
+    "test": "node --disable-warning=ExperimentalWarning --test test/auth.test.js test/sessions.test.js test/practice.test.js test/security.test.js"
   },
   "dependencies": {
     "express": "^5.1.0",

@@ -66,6 +66,13 @@ const gestureStats = z
   })
   .strict('Unexpected gesture in stats.')
 
+export const practiceAttemptSchema = z
+  .object({
+    gesture: z.enum(['pinch', 'fist', 'palm']),
+    success: z.boolean(),
+  })
+  .strict('Unexpected fields in request.')
+
 export const createSessionSchema = z
   .object({
     durationMin: z.coerce.number().int().min(1).max(180),

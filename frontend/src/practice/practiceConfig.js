@@ -1,0 +1,9 @@
+export const PRACTICE_TICK_MS = 100
+export const PRACTICE_HOLD_MS = 2000
+export const PRACTICE_SUGGEST_AFTER_STREAK = 3
+
+export const PRACTICE_CONFIG = {
+  tickMs: PRACTICE_TICK_MS,
+  holdMs: PRACTICE_HOLD_MS,
+  suggestAfterStreak: PRACTICE_SUGGEST_AFTER_STREAK,
+}

@@ -1,6 +1,7 @@
 import express from 'express'
 import helmet from 'helmet'
 import { createAuthRouter } from './routes/auth.js'
+import { createPracticeRouter } from './routes/practice.js'
 import { createSessionsRouter } from './routes/sessions.js'
 import { requireAuth } from './auth/middleware.js'
 import { buildRateLimiters } from './middleware/rateLimit.js'
@@ -54,6 +55,7 @@ export function createApp({ db, config }) {
 
   app.use('/auth', createAuthRouter({ db, config, limits }))
   app.use('/api/sessions', createSessionsRouter({ db, requireAuth: requireAuth(db, config) }))
+  app.use('/api/practice', createPracticeRouter({ db, requireAuth: requireAuth(db, config) }))
 
   app.use((req, res) => {
     res.status(404).json({ error: 'Not found.' })
