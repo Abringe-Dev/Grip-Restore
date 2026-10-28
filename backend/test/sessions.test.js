@@ -23,6 +23,11 @@ test('game sessions require authentication and are scoped per user', async (t) =
       accuracy: 1,
       gesture: 'Mixed',
       gestures: ['Pinch', 'Fist', 'Open Palm'],
+      gestureStats: {
+        pinch: { hits: 4, misses: 1 },
+        fist: { hits: 2, misses: 1 },
+        palm: { hits: 2, misses: 0 },
+      },
       calibration: [{ gesture: 'pinch', heldMs: 2000 }],
     },
   })
@@ -30,6 +35,11 @@ test('game sessions require authentication and are scoped per user', async (t) =
   assert.equal(created.data.accuracy, 80, 'server recomputes accuracy from hits/misses')
   assert.equal(created.data.difficulty, 'medium')
   assert.equal(created.data.calibration[0].gesture, 'pinch')
+  assert.deepEqual(created.data.gestureStats, {
+    pinch: { hits: 4, misses: 1 },
+    fist: { hits: 2, misses: 1 },
+    palm: { hits: 2, misses: 0 },
+  })
 
   await ctx.request('/api/sessions', {
     method: 'POST',
@@ -59,12 +69,33 @@ test('session payloads are validated', async (t) => {
     { durationMin: 5, difficulty: 'impossible' },
     { durationMin: 5, unexpected: true },
     { hits: 1, misses: 0 },
+    { durationMin: 5, gestureStats: { pinch: { hits: -1, misses: 0 } } },
+    { durationMin: 5, gestureStats: { wrist: { hits: 1, misses: 0 } } },
+    { durationMin: 5, gestureStats: { pinch: { hits: 1 } } },
   ]
 
   for (const body of cases) {
     const res = await ctx.request('/api/sessions', { method: 'POST', cookie: user.cookie, body })
     assert.equal(res.status, 400, `rejected payload ${JSON.stringify(body)}`)
   }
+})
+
+test('sessions saved before gesture stats load with an empty object', async (t) => {
+  const ctx = await startTestServer()
+  t.after(() => ctx.close())
+
+  const user = await createVerifiedUser(ctx, { email: 'legacy-stats@example.com' })
+  const created = await ctx.request('/api/sessions', {
+    method: 'POST',
+    cookie: user.cookie,
+    body: { durationMin: 5, hits: 3, misses: 1 },
+  })
+
+  assert.equal(created.status, 201)
+  assert.deepEqual(created.data.gestureStats, {})
+
+  const list = await ctx.request('/api/sessions', { cookie: user.cookie })
+  assert.deepEqual(list.data[0].gestureStats, {})
 })
 
 test('stored session timestamps drive history ordering', async (t) => {

@@ -23,6 +23,7 @@ export function mapSessionRow(row) {
     accuracy: row.accuracy,
     gesture: row.gesture,
     gestures: parseJson(row.gestures, []),
+    gestureStats: parseJson(row.gesture_stats, {}),
     calibration: parseJson(row.calibration, null),
   }
 }
@@ -39,7 +40,16 @@ export function createSessionsRouter({ db, requireAuth }) {
   })
 
   router.post('/', validate(createSessionSchema), (req, res) => {
-    const { durationMin, difficulty, hits, misses, gesture, gestures, calibration } = req.valid
+    const {
+      durationMin,
+      difficulty,
+      hits,
+      misses,
+      gesture,
+      gestures,
+      gestureStats,
+      calibration,
+    } = req.valid
     const hitCount = hits == null ? null : hits
     const missCount = misses == null ? null : misses
     const attempted = (hitCount ?? 0) + (missCount ?? 0)
@@ -50,8 +60,9 @@ export function createSessionsRouter({ db, requireAuth }) {
     const createdAt = new Date().toISOString()
     db.prepare(
       `INSERT INTO game_sessions
-        (id, user_id, duration_min, difficulty, hits, misses, accuracy, gesture, gestures, calibration, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, user_id, duration_min, difficulty, hits, misses, accuracy, gesture, gestures,
+         gesture_stats, calibration, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       id,
       req.user.id,
@@ -62,6 +73,7 @@ export function createSessionsRouter({ db, requireAuth }) {
       accuracy,
       String(gesture ?? 'Mixed'),
       JSON.stringify(Array.isArray(gestures) ? gestures : []),
+      JSON.stringify(gestureStats ?? {}),
       calibration == null ? null : JSON.stringify(calibration),
       createdAt,
     )

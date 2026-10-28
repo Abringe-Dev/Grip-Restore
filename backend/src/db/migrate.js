@@ -62,6 +62,15 @@ const MIGRATIONS = [
       CREATE INDEX idx_game_sessions_user_created ON game_sessions(user_id, created_at DESC);
     `,
   },
+  {
+    version: 2,
+    // Per-gesture outcomes let the weekly plan focus on the grips that
+    // actually need practice, while legacy rows simply read as {}.
+    sql: `
+      ALTER TABLE game_sessions
+        ADD COLUMN gesture_stats TEXT NOT NULL DEFAULT '{}';
+    `,
+  },
 ]
 
 export function migrate(db) {

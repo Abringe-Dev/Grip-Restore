@@ -50,6 +50,22 @@ export const verifySchema = z.object({ token }).strict('Unexpected fields in req
 
 const difficulty = z.enum(['easy', 'medium', 'hard']).optional()
 
+const gestureOutcome = z
+  .object({
+    hits: z.coerce.number().int().min(0).max(100000),
+    misses: z.coerce.number().int().min(0).max(100000),
+  })
+  .strict('Unexpected fields in gesture stats.')
+
+// Fixed gesture keys keep the client from inventing new lanes/stats.
+const gestureStats = z
+  .object({
+    pinch: gestureOutcome.optional(),
+    fist: gestureOutcome.optional(),
+    palm: gestureOutcome.optional(),
+  })
+  .strict('Unexpected gesture in stats.')
+
 export const createSessionSchema = z
   .object({
     durationMin: z.coerce.number().int().min(1).max(180),
@@ -59,6 +75,7 @@ export const createSessionSchema = z
     accuracy: z.coerce.number().min(0).max(100).optional(),
     gesture: z.string().max(40).optional().default('Mixed'),
     gestures: z.array(z.string().max(40)).max(10).optional().default([]),
+    gestureStats: gestureStats.optional().default({}),
     calibration: z.any().nullish(),
   })
   .strict('Unexpected fields in request.')

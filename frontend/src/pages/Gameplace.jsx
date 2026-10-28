@@ -24,6 +24,7 @@ import {
   resolveDifficulty,
   summarizeGame,
 } from '../game/fallingGame'
+import { createGestureStats, recordGestureResult } from '../game/gestureStats'
 import { initSounds, playFinish, playMiss, playPrompt, playSuccess, playTick } from '../game/sounds'
 import './../styles/game.css'
 
@@ -171,6 +172,7 @@ export default function Gameplace() {
   const hitsRef = useRef(0)
   const missesRef = useRef(0)
   const resolvedRef = useRef({})
+  const gestureStatsRef = useRef(createGestureStats())
   const scheduleRef = useRef([])
   const spawnedRef = useRef({})
   const lastReadyCountRef = useRef(null)
@@ -226,6 +228,7 @@ export default function Gameplace() {
         difficulty: difficulty.key,
         hits: summary.hits,
         misses: summary.misses,
+        gestureStats: gestureStatsRef.current,
         calibration,
       })
       return true
@@ -242,6 +245,7 @@ export default function Gameplace() {
     scheduleRef.current = notes
     setSchedule(notes)
     resolvedRef.current = {}
+    gestureStatsRef.current = createGestureStats()
     spawnedRef.current = {}
     elapsedRef.current = 0
     hitsRef.current = 0
@@ -302,6 +306,7 @@ export default function Gameplace() {
 
       if (now > note.hitAtMs + difficulty.hitWindowMs) {
         resolvedRef.current[note.id] = 'miss'
+        gestureStatsRef.current = recordGestureResult(gestureStatsRef.current, note.gesture, 'miss')
         resolvedChanged = true
         newMisses += 1
         missGesture = note.gesture
@@ -310,6 +315,7 @@ export default function Gameplace() {
 
       if (currentGesture === note.gesture) {
         resolvedRef.current[note.id] = 'hit'
+        gestureStatsRef.current = recordGestureResult(gestureStatsRef.current, note.gesture, 'hit')
         resolvedChanged = true
         newHits += 1
         hitGesture = note.gesture
