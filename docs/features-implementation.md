@@ -264,13 +264,13 @@ There is no global session-config store. Configuration travels in React Router `
 
 ### F3 Dashboard
 
-**Files:** `pages/Dashboard.jsx`, `components/StatCard.jsx`, `components/GestureCard.jsx`, `data/sessionStore.js`.
+**Files:** `pages/Dashboard.jsx`, `components/StatCard.jsx`, `components/GestureCard.jsx`, `data/sessionStore.js`, `data/analytics.js`.
 
-- Fetches the signed-in user's sessions once on mount with `GET /api/sessions`, then derives the weekly summary in a memo (`Dashboard.jsx`). A loading status and an inline error keep the page usable if the API is down.
+- Fetches the signed-in user's sessions once on mount with `GET /api/sessions`, then derives the weekly summary and weekly forecast in memos (`Dashboard.jsx`). A loading status and an inline error keep the page usable if the API is down.
 - Greeting uses `userName` from the session context.
-- Three stat cards: weekly accuracy with week-over-week caption, sessions completed vs. the goal of 8, and best streak in days (`Dashboard.jsx:31-52`).
-- The "Start a session" card navigates to `/start-session` (`Dashboard.jsx:54-62`).
-- The gesture strip is static presentation data, not read from the game engine.
+- Three stat cards: weekly accuracy with week-over-week caption, sessions completed vs. the goal of 8, and best streak in days.
+- The next-session card uses the forecast's duration/difficulty, expected accuracy, and focus grips. "Start this session" deep-links to `/start-session` with prefilled route state; "View week plan" opens `/plan`.
+- Each gesture card is a button that opens `/practice` focused on that grip.
 
 All numbers are **derived**, never stored: `getWeeklySummary` is pure and accepts an injectable `now` for tests (`data/sessionStore.js`). The page holds only the API response.
 
@@ -587,6 +587,7 @@ Rows stored before gameplay scoring still load: `hits`/`misses` are `null`, and 
 - Constants: `PRACTICE_TICK_MS = 100`, `PRACTICE_HOLD_MS = 2000`, `PRACTICE_SUGGEST_AFTER_STREAK = 3` (`practiceConfig.js`).
 - `Practice.jsx` runs the 100 ms interval only while tracking is active, uses `useEffectEvent` for the latest gesture, and posts completed attempts immediately.
 - Saved progress loads from `GET /api/practice`; each POST returns the updated row. The sidebar displays all three grips, saved accuracy, current/best streak, and switches target without navigating.
+- A target card above the hold bar shows the selected grip's emoji, name, and plain-language form hint, so the user can see what a correct shape looks like before and during the attempt.
 - After three consecutive successes, a suggestion card offers `/start-session`; it is shown at most once per grip per visit (`suggestedRef` Set). Dismissing keeps the current streak going without repeating the prompt.
 - The backend keeps one row per `(user_id, gesture)` with CHECK constraints, computes accuracy from counts, and scopes every query by `req.user.id` in a transaction. GET zero-fills all three grips; POST validates `{ gesture, success }` strictly.
 - `/practice` is in `SESSION_PATHS`, so the camera stream and tracking loop stay alive while the user navigates into it, then stop on leave.
@@ -612,6 +613,7 @@ Rows stored before gameplay scoring still load: `hits`/`misses` are `null`, and 
 | No data | 3 Easy 5-minute balanced sessions plus an explanation that the baseline will adapt |
 
 - The plan page shows forecast/next-session, focus, and planned-session cards, an explanation list, and seven day cards with rest days. Session actions deep-link to `/start-session` with prefilled duration/difficulty (`StartSession` now reads route state) or `/practice` with the focus grip.
+- The dashboard surfaces the same next-session duration, difficulty, expected accuracy, and focus, and its start button deep-links with those values.
 - Confidence is `high` for 5 recent sessions, `medium` for 3–4, `low` otherwise. The page explicitly presents forecasts as guidance, not a promised score.
 
 ### F14 How to Play and first-run guide
@@ -767,9 +769,9 @@ These depend on a real camera and remain verified only by inspection:
 - Live skeleton alignment on the mirrored, cropped preview.
 - Calibration hold progress and skip handoff.
 - Save-on-finish / save-on-quit appearing as the top row in History.
-- Practice hold bar, early-release failure, streak reset, saved progress refresh, and the once-per-grip-after-3-successes suggestion.
-- Per-gesture stats reaching History's API rows and the weekly forecast.
-- Forecast day cards deep-linking into a prefilled Start Session and focused Practice.
+- Practice target prompt and hint, hold bar, early-release failure, streak reset, saved progress refresh, and the once-per-grip-after-3-successes suggestion.
+- Per-gesture stats reaching History's API rows, the dashboard next-session card, and the weekly forecast.
+- Dashboard/forecast deep links into a prefilled Start Session and focused Practice.
 - First-run `<dialog>` appearing only until dismissed, Escape/backdrop dismissal, and the full guide rendering at `/instructions`.
 - StrictMode double-mount behavior and responsive breakpoints (900 px / 640 px / 700 px).
 
@@ -818,7 +820,8 @@ These depend on a real camera and remain verified only by inspection:
 | `17ab1bd` | Play-session suggestion after practice success |
 | `54ef75c` | Explainable weekly session forecast/plan |
 | `638b31d` | How to Play page and first-run guide |
-| _pending_ | **Current** — docs update for practice, forecasts, and guide |
+| `194c31f` | Docs update for practice, forecasts, and guide |
+| `0c37950` | Dashboard next-session card, focused-practice shortcuts, and practice target hint |
 
 ---
 

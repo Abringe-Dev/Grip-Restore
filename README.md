@@ -8,14 +8,14 @@ A web-based rehabilitation game for stroke survivors and arthritis patients. Gri
 - **Password recovery** — single-use, time-limited reset links; resetting signs out every session
 - **Account settings** — change your password (signs out other devices) or sign out everywhere
 - **Server-side sessions** — httpOnly cookie sessions backed by SQLite, so accounts and progress survive browser resets and work across devices
-- **Dashboard** — weekly summary with accuracy, sessions completed, and best streak
+- **Dashboard** — weekly summary, next-session forecast, and one-click focused practice for each grip
 - **Start Session** — pick a 5 or 10 minute session and an Easy, Medium, or Hard difficulty; the difficulty is suggested from your recent accuracy
 - **Webcam Setup** — requests camera permission and shows a live, mirrored preview
 - **Calibration** — 3-step hand calibration (Pinch, Fist, Open Palm)
 - **Gameplay** — gesture icons fall down three lanes; match each gesture when it reaches the target line
 - **Live scoring** — hits, misses, accuracy, sound feedback, and a 3-2-1 countdown
 - **Per-gesture accuracy** — every session records hits and misses for Pinch, Fist, and Open Palm
-- **Practice Mode** — focus on one grip with live hold status; accuracy, streaks, and best streak are saved to your account, and three consecutive successes suggest a play session
+- **Practice Mode** — focus on one grip with a target prompt, plain-language form hint, and live hold status; accuracy, streaks, and best streak are saved to your account, and three consecutive successes suggest a play session
 - **Weekly plan** — a 7-day, 2–4 session forecast on alternating days, built from your last five sessions and each grip's last three sessions; every recommendation explains why
 - **How to Play** — a step-by-step guide with a one-time first-visit prompt (remembered per user on this browser)
 - **History** — weekly charts and the most recent sessions, loaded from your account
