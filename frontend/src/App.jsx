@@ -17,6 +17,7 @@ import Calibration from './pages/Calibration'
 import Gameplace from './pages/Gameplace'
 import Practice from './pages/Practice'
 import WeeklyPlan from './pages/WeeklyPlan'
+import Instructions from './pages/Instructions'
 import History from './pages/History'
 import Account from './pages/Account'
 
@@ -128,6 +129,14 @@ function AnimatedRoutes() {
             element={
               <PageTransition>
                 <WeeklyPlan />
+              </PageTransition>
+            }
+          />
+          <Route
+            path="instructions"
+            element={
+              <PageTransition>
+                <Instructions />
               </PageTransition>
             }
           />

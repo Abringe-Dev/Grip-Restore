@@ -1,0 +1,262 @@
+.guide-main {
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-5) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.guide-hero {
+  text-align: center;
+}
+
+.guide-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-2xl);
+  letter-spacing: -0.05em;
+  color: var(--ink);
+}
+
+.guide-sub {
+  max-width: 620px;
+  margin: var(--space-2) auto 0;
+  font-size: var(--text-md);
+  color: var(--ink-soft);
+}
+
+.guide-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.guide-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.guide-section-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-lg);
+  letter-spacing: -0.02em;
+}
+
+.guide-section p {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.guide-list {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.guide-gestures {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+
+.guide-gesture {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--gesture-color) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gesture-color) 26%, transparent);
+}
+
+.guide-gesture-emoji {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.guide-gesture-name {
+  font-weight: 700;
+  color: var(--gesture-color);
+}
+
+.guide-gesture-desc {
+  font-size: var(--text-2xs);
+  color: var(--ink-soft);
+}
+
+.guide-section--safety {
+  border: 1px solid color-mix(in srgb, var(--error) 22%, transparent);
+  background: color-mix(in srgb, var(--error) 4%, var(--surface));
+}
+
+.guide-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.guide-cta-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* First-run guide */
+
+.guide-dialog {
+  width: min(720px, calc(100vw - 2 * var(--space-4)));
+  max-height: 86vh;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: 0 24px 80px rgba(20, 32, 36, 0.35);
+  overflow: hidden;
+}
+
+.guide-dialog::backdrop {
+  background: rgba(20, 32, 36, 0.58);
+  backdrop-filter: blur(3px);
+}
+
+.guide-dialog-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: 86vh;
+}
+
+.guide-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border-bottom: 1px solid rgba(38, 50, 56, 0.1);
+}
+
+.guide-dialog-eyebrow {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.guide-dialog-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-xl);
+  letter-spacing: -0.04em;
+  color: var(--ink);
+}
+
+.guide-dialog-close {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(38, 50, 56, 0.08);
+  color: var(--ink-soft);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+.guide-dialog-close:hover {
+  background: rgba(38, 50, 56, 0.14);
+  color: var(--ink);
+}
+
+.guide-dialog-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.guide-dialog-intro {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.guide-content--compact .guide-section {
+  box-shadow: none;
+  border: 1px solid rgba(38, 50, 56, 0.08);
+  padding: var(--space-4);
+}
+
+.guide-content--compact .guide-section-title {
+  font-size: var(--text-md);
+}
+
+.guide-content--compact .guide-gestures {
+  gap: var(--space-2);
+}
+
+.guide-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid rgba(38, 50, 56, 0.1);
+  background: var(--surface);
+}
+
+@media (max-width: 700px) {
+  .guide-main {
+    padding: var(--space-5) var(--space-3) var(--space-6);
+  }
+
+  .guide-gestures {
+    grid-template-columns: 1fr;
+  }
+
+  .guide-dialog {
+    width: calc(100vw - var(--space-4));
+    max-height: 92vh;
+  }
+
+  .guide-dialog-panel {
+    max-height: 92vh;
+  }
+
+  .guide-dialog-head,
+  .guide-dialog-body,
+  .guide-dialog-actions {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+
+  .guide-dialog-actions {
+    justify-content: stretch;
+  }
+
+  .guide-dialog-actions .btn {
+    flex: 1;
+  }
+}

@@ -8,6 +8,7 @@ const links = [
   { to: '/start-session', label: 'Start Session' },
   { to: '/practice', label: 'Practice' },
   { to: '/plan', label: 'Week Plan' },
+  { to: '/instructions', label: 'How to Play' },
   { to: '/history', label: 'History' },
   { to: '/account', label: 'Account' },
 ]
