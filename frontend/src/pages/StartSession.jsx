@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import GestureCard from '../components/GestureCard'
 import { listSessions } from '../api/sessions'
@@ -20,11 +20,19 @@ const gestures = [
 
 export default function StartSession() {
   const navigate = useNavigate()
-  const [selected, setSelected] = useState(10)
-  const [difficulty, setDifficulty] = useState('easy')
+  const location = useLocation()
+  const preset = location.state ?? {}
+  const presetDuration = durations.some((d) => d.minutes === preset.durationMin)
+    ? preset.durationMin
+    : 10
+  const presetDifficulty = DIFFICULTIES.some((d) => d.key === preset.difficulty)
+    ? preset.difficulty
+    : null
+  const [selected, setSelected] = useState(presetDuration)
+  const [difficulty, setDifficulty] = useState(presetDifficulty ?? 'easy')
   const [recommendation, setRecommendation] = useState(null)
-  const [picked, setPicked] = useState(false)
-  const pickedRef = useRef(false)
+  const [picked, setPicked] = useState(Boolean(presetDifficulty))
+  const pickedRef = useRef(Boolean(presetDifficulty))
 
   useEffect(() => {
     let active = true

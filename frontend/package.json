@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "node --test src/game/fallingGame.test.js src/game/gestureStats.test.js src/data/sessionStore.test.js src/practice/practiceEngine.test.js",
+    "test": "node --test src/game/fallingGame.test.js src/game/gestureStats.test.js src/data/sessionStore.test.js src/data/analytics.test.js src/practice/practiceEngine.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
