@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import WebcamCard from '../components/WebcamCard'
 import { useWebcam } from '../context/useWebcam'
 import { useHandTracking } from '../context/useHandTracking'
 import { getPracticeProgress, recordPracticeAttempt } from '../api/practice'
 import { GESTURES, gestureByKey } from '../game/session'
-import { createPracticeState, practicePercent, tickPractice } from '../practice/practiceEngine'
+import {
+  createPracticeState,
+  practicePercent,
+  shouldSuggestSession,
+  tickPractice,
+} from '../practice/practiceEngine'
 import { PRACTICE_CONFIG } from '../practice/practiceConfig'
 import './../styles/practice.css'
 
@@ -29,16 +34,20 @@ function statusCopy(practice, label, trackingStatus) {
 
 export default function Practice() {
   const location = useLocation()
+  const navigate = useNavigate()
   const requestedGesture = gestureByKey(location.state?.gesture)?.key ?? DEFAULT_GESTURE
   const [selected, setSelected] = useState(requestedGesture)
   const [practice, setPractice] = useState(() => createPracticeState(requestedGesture))
   const [progress, setProgress] = useState(null)
   const [progressError, setProgressError] = useState('')
   const [saveError, setSaveError] = useState('')
+  const [suggestedGesture, setSuggestedGesture] = useState(null)
   const { status, stream, start } = useWebcam()
   const { currentGesture, trackingStatus, startTracking } = useHandTracking()
   const practiceRef = useRef(practice)
+  const suggestedRef = useRef(new Set())
   const activeMeta = gestureByKey(selected) ?? GESTURES[0]
+  const suggestedMeta = gestureByKey(suggestedGesture)
   const tracking = trackingStatus === 'active'
 
   useEffect(() => {
@@ -83,7 +92,16 @@ export default function Practice() {
     )
     practiceRef.current = result.state
     setPractice(result.state)
-    if (result.event) saveAttempt(result.event)
+    if (!result.event) return
+    saveAttempt(result.event)
+    if (
+      result.event.type === 'success'
+      && shouldSuggestSession(result.state, PRACTICE_CONFIG)
+      && !suggestedRef.current.has(result.event.gesture)
+    ) {
+      suggestedRef.current.add(result.event.gesture)
+      setSuggestedGesture(result.event.gesture)
+    }
   })
 
   useEffect(() => {
@@ -98,6 +116,7 @@ export default function Practice() {
     setPractice(next)
     setSelected(key)
     setSaveError('')
+    setSuggestedGesture(null)
   }
 
   const handleRetry = useCallback(() => {
@@ -154,6 +173,27 @@ export default function Practice() {
             </div>
             <p className="practice-visit-summary">{localSummary}</p>
           </div>
+
+          {suggestedMeta && (
+            <div className="practice-suggestion" role="status" aria-live="polite">
+              <p className="practice-suggestion-copy">
+                <strong>Three in a row!</strong> Your {suggestedMeta.label.toLowerCase()} is
+                looking steady. Ready to put it to work in a play session?
+              </p>
+              <div className="practice-suggestion-actions">
+                <Button fullWidth={false} onClick={() => navigate('/start-session')}>
+                  Start a play session
+                </Button>
+                <Button
+                  fullWidth={false}
+                  variant="ghost"
+                  onClick={() => setSuggestedGesture(null)}
+                >
+                  Keep practicing
+                </Button>
+              </div>
+            </div>
+          )}
 
           {!tracking && trackingStatus !== 'loading' && (
             <Button onClick={handleRetry}>Try camera again</Button>
