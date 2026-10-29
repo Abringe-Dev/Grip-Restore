@@ -657,7 +657,7 @@ Foreign keys cascade on user deletion. Migration v2 adds `gesture_stats TEXT NOT
 1. `helmet` sets API-safe headers (CSP `default-src 'none'`, `frame-ancestors 'none'`, no-referrer, no `X-Powered-By`) and `Permissions-Policy: camera=(self)`.
 2. CORS is restricted to `APP_ORIGIN` with credentials enabled.
 3. JSON bodies are limited to **16 kB**; malformed JSON → `400`.
-4. `csrfGuard` rejects unsafe methods whose `Origin`/`Referer` is missing in production or not in the allowlist.
+4. `csrfGuard` rejects unsafe methods whose `Origin`/`Referer` is missing in production or not in the allowlist. Development defaults allow `localhost:5173`–`5175` and `5199`; production falls back to `APP_URL` unless `APP_ORIGIN` is set. Vite uses `strictPort` so a duplicate server fails instead of moving to another port.
 5. Route-specific rate limiters run before validation (key: client IP + normalized email; IPv6 grouped by `/64` via `ipKeyGenerator`).
 6. `validate(schema)` replaces the body with the parsed result, so handlers never see unvalidated fields.
 7. `requireAuth` hashes the cookie token, resolves the session, checks expiry, slides the TTL when older than 15 days, and attaches `req.user`.

@@ -21,12 +21,21 @@ export function loadConfig(env = process.env) {
   const databasePath = env.DATABASE_PATH
     ? path.resolve(BACKEND_ROOT, env.DATABASE_PATH)
     : path.join(BACKEND_ROOT, 'data', 'grip-restore.db')
+  const appUrl = String(env.APP_URL || 'http://localhost:5173').replace(/\/$/, '')
+  // Development tolerates Vite's fallback ports so a second dev server or a
+  // busy 5173 does not surface as a confusing CSRF "untrusted origin" error.
+  const devOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://localhost:5199',
+  ].join(',')
 
   return {
     isProd,
     port: Number(env.PORT) || 3001,
-    appUrl: String(env.APP_URL || 'http://localhost:5173').replace(/\/$/, ''),
-    origins: parseOrigins(env.APP_ORIGIN || 'http://localhost:5173,http://localhost:5199'),
+    appUrl,
+    origins: parseOrigins(env.APP_ORIGIN || (isProd ? appUrl : devOrigins)),
     databasePath,
     pepper,
     trustProxy: String(env.TRUST_PROXY ?? '0') === '1',

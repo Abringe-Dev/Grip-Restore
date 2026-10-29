@@ -97,7 +97,7 @@ With no SMTP configured, verification and reset emails are printed to the API co
 | `NODE_ENV` | `development` | `production` requires `PASSWORD_PEPPER` and rejects requests without a trusted `Origin` |
 | `PORT` | `3001` | API port |
 | `APP_URL` | `http://localhost:5173` | Base URL used in email links |
-| `APP_ORIGIN` | `http://localhost:5173,http://localhost:5199` | Comma-separated CSRF allowlist |
+| `APP_ORIGIN` | `http://localhost:5173`–`5175`, `5199` (development) | Comma-separated CSRF allowlist; production falls back to `APP_URL` |
 | `DATABASE_PATH` | `backend/data/grip-restore.db` | Relative to `backend/` (gitignored) |
 | `PASSWORD_PEPPER` | dev-only fallback | **Required in production**; changing it invalidates all passwords |
 | `TRUST_PROXY` | `0` | Set `1` behind a reverse proxy so rate limits see the real client IP |
@@ -114,7 +114,7 @@ With no SMTP configured, verification and reset emails are printed to the API co
   ```
 
   The frontend alone (`npm --prefix frontend run dev`) has no API to talk to; check `http://localhost:3001/health` returns `{ "ok": true }`.
-- **Port 5173 already in use** — an earlier dev server is still running. Stop it (`Ctrl+C` in its terminal) and run `npm run dev` again.
+- **Port 5173 already in use** — Vite runs with `strictPort` and exits instead of silently using `:5174`. Stop the earlier server (`Ctrl+C` in its terminal), then run `npm run dev` again.
 - **Emails aren't arriving** — without SMTP configured, verification and reset links are printed in the API terminal. They also appear as "Open link (dev)" shortcuts in the UI.
 
 ## Scripts

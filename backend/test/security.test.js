@@ -1,6 +1,30 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { loadConfig } from '../src/config.js'
 import { login, registerUser, startTestServer } from './helpers.js'
+
+test('development trusts Vite fallback ports while production uses APP_URL', () => {
+  const dev = loadConfig({ NODE_ENV: 'development' })
+  assert.deepEqual(dev.origins, [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://localhost:5199',
+  ])
+
+  const prod = loadConfig({
+    NODE_ENV: 'production',
+    PASSWORD_PEPPER: 'prod-test-pepper-value',
+    APP_URL: 'https://grip.example/',
+  })
+  assert.deepEqual(prod.origins, ['https://grip.example'])
+
+  const override = loadConfig({
+    NODE_ENV: 'development',
+    APP_ORIGIN: 'http://localhost:6000',
+  })
+  assert.deepEqual(override.origins, ['http://localhost:6000'])
+})
 
 test('security headers are present and framework details are hidden', async (t) => {
   const ctx = await startTestServer()
