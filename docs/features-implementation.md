@@ -472,8 +472,8 @@ The render pass filters notes: resolved hits disappear; unresolved notes render 
 
 - `summarizeGame(hits, misses)` returns `{ hits, misses, attempted, accuracy }`, flooring negative/fractional inputs and guarding non-finite values (`fallingGame.js:119-129`).
 - HUD: time left (`role="timer"`), hits, misses, accuracy, difficulty (`Gameplace.jsx:384-408`); a `role="progressbar"` session bar tracks elapsed time (`Gameplace.jsx:410-419`).
-- Final overlay shows hits, misses, accuracy, difficulty, and duration (`Gameplace.jsx:113-133`).
-- **Finish:** `saveCurrentSession(durationMin)` → phase `done` → finish sound → navigate to `/history` after 2600 ms (`Gameplace.jsx:31`, `Gameplace.jsx:248-256`).
+- Final overlay shows hits, misses, accuracy, per-gesture hit/miss breakdown, difficulty, duration, and a **View history** action. The same breakdown also appears under each recent session in History.
+- **Finish:** `saveCurrentSession(durationMin)` → phase `done` → finish sound → navigate to `/history` after 6000 ms, or immediately via **View history** once the in-flight save settles (`Gameplace.jsx`).
 - **Quit:** `saveCurrentSession(elapsedToDurationMin(elapsedMs))` → immediate `/history` (`Gameplace.jsx:342-347`). Quit duration rounds wall-clock time up to whole minutes with a 1-minute floor (`session.js:29-34`).
 - Both paths save only if `attempted > 0` (`Gameplace.jsx:212-226`), so a countdown-only quit writes nothing. `endedRef` makes finish/quit single-shot.
 
@@ -543,7 +543,7 @@ Rows stored before gameplay scoring still load: `hits`/`misses` are `null`, and 
 | `getAccuracyTrend` | Per-week mean accuracy; a week with no sessions **carries the previous value forward** |
 | `getBestStreak` | Longest run of consecutive calendar days with at least one session |
 | `getWeeklySummary` | Current-week accuracy, change vs. previous week, sessions completed, goal (8), best streak |
-| `getSessionHistory` | Newest 6 sessions; `mode` = difficulty label → gesture → first gesture → `"Session"`; `hits`/`misses` rounded or `null` |
+| `getSessionHistory` | Newest 6 sessions; `mode` = difficulty label → gesture → first gesture → `"Session"`; `hits`/`misses` rounded or `null`; `gestureSummary` = normalized per-gesture rows or `[]` |
 
 `weekIndexOf` clamps buckets to the 7 displayed weeks; sessions outside that window are ignored by charts. All functions are covered by `sessionStore.test.js`.
 
@@ -555,19 +555,20 @@ Rows stored before gameplay scoring still load: `hits`/`misses` are `null`, and 
   - `AccuracyTrendChart`: grid at 0/25/50/75/100, gradient area polygon, polyline, dots with `<title>` tooltips.
   - `SessionsBarChart`: y-scale is `max + 1`, rounded bars, value labels, `<title>` tooltips.
   - Both expose `role="img"` with descriptive `aria-label`s.
-- Recent sessions list renders `—` for missing hits/misses (legacy rows).
+- Recent sessions list renders `—` for missing hits/misses (legacy rows). Rows with gesture stats show a wrapping chip line under the columns (e.g., `Pinch 10 hit · 5 missed`) via the shared `GestureSummary` component; legacy rows simply omit the line.
 - Empty state: "No sessions yet — complete your first session to start tracking progress."
 
 ---
 
 ### F11 Per-gesture session stats
 
-**Files:** `game/gestureStats.js` (+ test), `pages/Gameplace.jsx`, `backend/src/db/migrate.js` (v2), `backend/src/validation/schemas.js`, `backend/src/routes/sessions.js`, `backend/test/sessions.test.js`.
+**Files:** `game/gestureStats.js` (+ test), `components/GestureSummary.jsx` (+ css), `pages/Gameplace.jsx`, `pages/History.jsx`, `data/sessionStore.js`, `backend/src/db/migrate.js` (v2), `backend/src/validation/schemas.js`, `backend/src/routes/sessions.js`, `backend/test/sessions.test.js`.
 
 - `createGestureStats()` returns zeroed counters for `pinch`, `fist`, and `palm`; `recordGestureResult(stats, gesture, result)` is pure and returns a new object, ignoring unknown gestures/results.
 - `Gameplace` keeps the counters in a ref, updates them inside the 50 ms resolution loop for every hit/miss, resets them on play start, and includes them in the save payload.
 - The API persists `gesture_stats` as JSON and returns `gestureStats` on every session. Validation uses a strict fixed-key object, so unknown gestures or negative counts are rejected. Legacy rows map to `{}`.
-- Tests cover immutable counting, unknown inputs, validation failures, round-tripping, and legacy rows.
+- `summarizeGestureStats(stats)` normalizes saved counters into ordered display rows, skipping zero-attempt and unknown lanes. `GestureSummary` renders those rows in both the History list and the Session complete overlay; the overlay snapshots the same ref used by the save payload, so the two views always agree.
+- Tests cover immutable counting, unknown inputs, validation failures, round-tripping, legacy rows, and summary normalization/filtering.
 
 ### F12 Practice Mode
 
@@ -855,7 +856,7 @@ These depend on a real camera and remain verified only by inspection:
 | Forecast trend cap | `±5` points (half the delta) | `data/analytics.js` |
 | Plan days | `+1, +3, +5, +7` from tomorrow | `data/analytics.js` |
 | Guide storage | `grip-restore:guide-seen:<userId>` | `data/guide.js` |
-| `RESULT_NAV_MS` | `2600` ms | `pages/Gameplace.jsx:31` |
+| `RESULT_NAV_MS` | `6000` ms | `pages/Gameplace.jsx` |
 | `FEEDBACK_MS` | `650` ms | `pages/Gameplace.jsx:30` |
 | Weekly goal | `8` sessions | `data/sessionStore.js:6` |
 | Weeks shown | `7` | `data/sessionStore.js:2` |

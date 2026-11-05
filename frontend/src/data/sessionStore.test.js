@@ -32,7 +32,15 @@ function session(overrides = {}) {
 test('history maps server sessions, newest first', () => {
   const rows = [
     session({ id: 'old', dateISO: '2026-10-01T10:00:00.000Z', difficulty: 'easy', accuracy: 70 }),
-    session({ id: 'new', dateISO: '2026-10-20T10:00:00.000Z' }),
+    session({
+      id: 'new',
+      dateISO: '2026-10-20T10:00:00.000Z',
+      gestureStats: {
+        pinch: { hits: 5, misses: 1 },
+        fist: { hits: 2, misses: 1 },
+        palm: { hits: 1, misses: 0 },
+      },
+    }),
   ]
 
   const history = getSessionHistory(rows)
@@ -40,6 +48,14 @@ test('history maps server sessions, newest first', () => {
   assert.equal(history[0].mode, 'Medium')
   assert.equal(history[0].hits, 8)
   assert.equal(history[0].misses, 2)
+  assert.deepEqual(
+    history[0].gestureSummary.map(({ key, hits, misses }) => ({ key, hits, misses })),
+    [
+      { key: 'pinch', hits: 5, misses: 1 },
+      { key: 'fist', hits: 2, misses: 1 },
+      { key: 'palm', hits: 1, misses: 0 },
+    ],
+  )
   assert.equal(history[1].mode, 'Easy')
   assert.equal(history[1].accuracy, 70)
 })
@@ -59,6 +75,7 @@ test('history stays compatible with sessions saved before gameplay scoring', () 
   assert.equal(history[0].mode, 'Pinch')
   assert.equal(history[0].hits, null)
   assert.equal(history[0].misses, null)
+  assert.deepEqual(history[0].gestureSummary, [])
   assert.equal(history[0].accuracy, 90)
 })
 

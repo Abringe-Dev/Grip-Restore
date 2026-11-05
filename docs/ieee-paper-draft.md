@@ -163,7 +163,7 @@ Practice isolates one grip at a time. The user holds the target for two seconds;
 
 ### D. Progress Analytics and Adaptation
 
-Each game session stores duration, difficulty, hits, misses, total accuracy, and per-gesture hits and misses. The dashboard derives a seven-week summary: current-week accuracy, change from the previous week, sessions completed against a goal of eight, and the best streak of consecutive days with a session. A week with no sessions carries the previous accuracy forward so the chart does not imply a drop to zero. History shows the six most recent sessions.
+Each game session stores duration, difficulty, hits, misses, total accuracy, and per-gesture hits and misses. The dashboard derives a seven-week summary: current-week accuracy, change from the previous week, sessions completed against a goal of eight, and the best streak of consecutive days with a session. A week with no sessions carries the previous accuracy forward so the chart does not imply a drop to zero. History shows the six most recent sessions with a per-gesture hit/miss breakdown, and the completion overlay repeats that breakdown immediately after play.
 
 The forecast uses the five most recent valid sessions. It adds half the difference between the recent average and the preceding five-session average, rounded and capped at ±5 points, then clamps the result to 0–100. Labels are “Likely strong” at 85 or above, “Likely steady” at 70, “Likely mixed” at 55, and “Likely challenging” below 55. Confidence is high with five recent sessions, medium with three or four, and low otherwise.
 

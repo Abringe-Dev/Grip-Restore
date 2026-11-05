@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
+import GestureSummary from '../components/GestureSummary'
 import WebcamCard from '../components/WebcamCard'
 import { useWebcam } from '../context/useWebcam'
 import { useHandTracking } from '../context/useHandTracking'
@@ -24,12 +25,12 @@ import {
   resolveDifficulty,
   summarizeGame,
 } from '../game/fallingGame'
-import { createGestureStats, recordGestureResult } from '../game/gestureStats'
+import { createGestureStats, recordGestureResult, summarizeGestureStats } from '../game/gestureStats'
 import { initSounds, playFinish, playMiss, playPrompt, playSuccess, playTick } from '../game/sounds'
 import './../styles/game.css'
 
 const FEEDBACK_MS = 650
-const RESULT_NAV_MS = 2600
+const RESULT_NAV_MS = 6000
 
 function FallingBoard({
   notes,
@@ -41,9 +42,11 @@ function FallingBoard({
   pauseNote,
   feedback,
   summary,
+  gestureSummary,
   difficulty,
   durationMin,
   saveError,
+  onViewHistory,
 }) {
   const bandTop = HIT_LINE_PROGRESS * 100 - bandPercent / 2
 
@@ -130,10 +133,16 @@ function FallingBoard({
               <span className="game-result-label">Accuracy</span>
             </div>
           </div>
+          <GestureSummary
+            items={gestureSummary}
+            className="game-result-gestures"
+            label="Per-gesture results for this session"
+          />
           <p className="game-sub">{difficulty.label} · {durationMin} min session</p>
           {saveError && (
             <p className="game-sub" role="alert">{saveError}</p>
           )}
+          <Button fullWidth={false} onClick={onViewHistory}>View history</Button>
         </div>
       )}
     </div>
@@ -163,6 +172,7 @@ export default function Gameplace() {
   const [schedule, setSchedule] = useState([])
   const [resolvedNotes, setResolvedNotes] = useState({})
   const [feedback, setFeedback] = useState(null)
+  const [finalGestureSummary, setFinalGestureSummary] = useState([])
   const [saveError, setSaveError] = useState('')
 
   const endedRef = useRef(false)
@@ -177,6 +187,8 @@ export default function Gameplace() {
   const spawnedRef = useRef({})
   const lastReadyCountRef = useRef(null)
   const navigateTimerRef = useRef(0)
+  const savePromiseRef = useRef(null)
+  const navigatingRef = useRef(false)
   const feedbackTimerRef = useRef(0)
   const feedbackNonceRef = useRef(0)
 
@@ -259,14 +271,29 @@ export default function Gameplace() {
     playPrompt()
   }
 
+  const goToHistory = async () => {
+    if (navigatingRef.current) return
+    navigatingRef.current = true
+    if (navigateTimerRef.current) {
+      clearTimeout(navigateTimerRef.current)
+      navigateTimerRef.current = 0
+    }
+    try {
+      await savePromiseRef.current
+    } finally {
+      navigate('/history')
+    }
+  }
+
   const finishSession = () => {
     if (endedRef.current) return
     endedRef.current = true
-    void saveCurrentSession(durationMin)
+    setFinalGestureSummary(summarizeGestureStats(gestureStatsRef.current))
+    savePromiseRef.current = saveCurrentSession(durationMin)
     setPhase('done')
     setFeedback(null)
     playFinish()
-    navigateTimerRef.current = setTimeout(() => navigate('/history'), RESULT_NAV_MS)
+    navigateTimerRef.current = setTimeout(() => { void goToHistory() }, RESULT_NAV_MS)
   }
 
   const onTick = useEffectEvent(() => {
@@ -446,9 +473,11 @@ export default function Gameplace() {
             pauseNote={readinessNote}
             feedback={feedback}
             summary={summary}
+            gestureSummary={finalGestureSummary}
             difficulty={difficulty}
             durationMin={durationMin}
             saveError={saveError}
+            onViewHistory={goToHistory}
           />
           {phase === 'playing' && canPlay && !handsDetected && (
             <p className="game-hands-hint">Show your hand in the camera</p>

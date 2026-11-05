@@ -1,3 +1,5 @@
+import { summarizeGestureStats } from '../game/gestureStats.js'
+
 const DAY_MS = 24 * 60 * 60 * 1000
 const WEEKS_SHOWN = 7
 const HISTORY_LIMIT = 6
@@ -161,6 +163,7 @@ export function getSessionHistory(sessions, limit = HISTORY_LIMIT) {
       difficulty: s.difficulty || '',
       hits: Number.isFinite(s.hits) ? Math.max(0, Math.round(s.hits)) : null,
       misses: Number.isFinite(s.misses) ? Math.max(0, Math.round(s.misses)) : null,
+      gestureSummary: summarizeGestureStats(s.gestureStats),
       accuracy: Math.round(s.accuracy),
       duration: `${s.durationMin} min`,
     }))

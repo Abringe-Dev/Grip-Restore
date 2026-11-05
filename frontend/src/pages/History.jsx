@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import StatCard from '../components/StatCard'
+import GestureSummary from '../components/GestureSummary'
 import { AccuracyTrendChart, SessionsBarChart } from '../components/Charts'
 import { listSessions } from '../api/sessions'
 import {
@@ -103,6 +104,11 @@ export default function History() {
                     <span className="history-row-misses">{s.misses ?? '—'}</span>
                     <span className="history-row-accuracy">{s.accuracy}%</span>
                     <span className="history-row-duration">{s.duration}</span>
+                    <GestureSummary
+                      items={s.gestureSummary}
+                      className="history-gestures"
+                      label={`Per-gesture results for ${s.date}`}
+                    />
                   </li>
                 ))}
               </ul>

@@ -379,6 +379,11 @@
   color: var(--ink-soft);
 }
 
+.game-result-gestures {
+  width: min(100%, 440px);
+  justify-content: center;
+}
+
 .game-side {
   min-width: 0;
   display: flex;
