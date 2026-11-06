@@ -105,6 +105,26 @@ With no SMTP configured, verification and reset emails are printed to the API co
 | `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | empty / `Grip Restore <no-reply@…>` | Credentials + From header |
 | `VITE_API_BASE` | empty | Frontend only; use when the API is not same-origin (cookies need CORS credentials) |
 
+### Deploying to Vercel
+
+The root `vercel.json` deploys both halves as one Vercel project using Services: the Vite frontend at `/` and the Express API at `/auth`, `/api`, and `/health`. The backend is pinned to Node.js 24 because it uses `node:sqlite`.
+
+Set these API environment variables in the Vercel dashboard before deploying:
+
+| Variable | Value |
+| --- | --- |
+| `NODE_ENV` | `production` |
+| `PASSWORD_PEPPER` | A long random secret |
+| `APP_URL` | `https://<deployment-domain>` |
+| `APP_ORIGIN` | `https://<deployment-domain>` |
+| `TRUST_PROXY` | `1` |
+| `DATABASE_PATH` | `/tmp/grip-restore.db` |
+| `SMTP_*` | Optional, to send real verification/reset email |
+
+Leave `VITE_API_BASE` unset so the frontend keeps using same-origin requests.
+
+This is a demo deployment. SQLite lives in `/tmp`, so accounts and sessions are lost when a function instance is recycled and are not shared across instances. Preview deployment origins must also be added to `APP_ORIGIN` for authenticated requests. Use a persistent database before treating this deployment as production.
+
 ### Troubleshooting
 
 - **"The API server is not running" / registration fails** — start the dev servers from the **repository root**, not from `frontend/` or `backend/`:

@@ -5,6 +5,9 @@
   "type": "module",
   "description": "Grip Restore API: secure auth, email verification, and per-user game sessions",
   "main": "src/server.js",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning --watch src/server.js",
     "start": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/server.js",
