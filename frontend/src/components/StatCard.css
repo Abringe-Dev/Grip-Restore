@@ -40,6 +40,10 @@
   color: var(--purple);
 }
 
+.stat-card--red .stat-card-value {
+  color: var(--error);
+}
+
 .stat-card-caption {
   font-size: var(--text-2xs);
   color: var(--ink-soft);

@@ -26,6 +26,12 @@
   color: var(--ink-soft);
 }
 
+.history-hero-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-4);
+}
+
 .history-charts {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -48,6 +54,39 @@
   letter-spacing: -0.02em;
   color: var(--ink);
   margin-bottom: var(--space-4);
+}
+
+.history-chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.history-chart-head .history-chart-title {
+  margin-bottom: 0;
+}
+
+.history-chart-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--error-bg);
+  color: var(--error);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.history-chart-caption {
+  margin-top: var(--space-4);
+  color: var(--ink-soft);
+  font-size: var(--text-2xs);
+  line-height: 1.5;
 }
 
 .history-list {

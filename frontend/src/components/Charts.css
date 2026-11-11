@@ -31,6 +31,127 @@
   opacity: 1;
 }
 
+.chart-bar--hits {
+  fill: var(--success);
+  opacity: 0.9;
+}
+
+.chart-bar--misses {
+  fill: var(--error);
+  opacity: 0.78;
+}
+
+.chart-bar--misses:hover {
+  opacity: 0.95;
+}
+
+.chart-empty {
+  margin: 0;
+  padding: var(--space-5);
+  border: 1px dashed color-mix(in srgb, var(--ink) 18%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  text-align: center;
+}
+
+.chart-empty--positive {
+  border-color: color-mix(in srgb, var(--green) 35%, transparent);
+  background: color-mix(in srgb, var(--green) 7%, transparent);
+  color: var(--success);
+}
+
+.miss-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.miss-chart-row {
+  display: grid;
+  grid-template-columns: minmax(92px, 130px) minmax(0, 1fr) 58px;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.miss-chart-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.miss-chart-emoji {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.miss-chart-track {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
+}
+
+.miss-chart-fill {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: inherit;
+  background: var(--gesture-color, var(--primary));
+  transition: width var(--transition);
+}
+
+.miss-chart-value {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px;
+  color: var(--ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.miss-chart-share {
+  color: var(--ink-soft);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  color: var(--ink-soft);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+}
+
+.chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chart-legend-swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+}
+
+.chart-legend-swatch--hits {
+  background: var(--success);
+}
+
+.chart-legend-swatch--misses {
+  background: var(--error);
+}
+
 .chart-axis-label {
   fill: var(--ink-soft);
   font-size: 12px;
@@ -42,4 +163,15 @@
   font-size: 12px;
   font-weight: 600;
   font-family: var(--font-body);
+}
+
+@media (max-width: 520px) {
+  .miss-chart-row {
+    grid-template-columns: minmax(78px, 1fr) minmax(0, 1.4fr) 48px;
+    gap: var(--space-2);
+  }
+
+  .miss-chart-label {
+    font-size: var(--text-2xs);
+  }
 }

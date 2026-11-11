@@ -66,7 +66,7 @@ export function createNoteSchedule({ difficulty, durationMs, rng = Math.random }
   let hitAt = LEAD_IN_MS + travelToHitMs
   let index = 0
 
-  while (hitAt <= totalMs) {
+  while (Math.round(hitAt) + config.hitWindowMs <= totalMs) {
     const gesture = pickNextGesture(previousGesture, rng)
     const spawnAtMs = Math.round(hitAt - travelToHitMs)
     const hitAtMs = Math.round(hitAt)

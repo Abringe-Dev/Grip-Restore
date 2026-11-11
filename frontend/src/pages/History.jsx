@@ -1,8 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import Button from '../components/Button'
 import StatCard from '../components/StatCard'
 import GestureSummary from '../components/GestureSummary'
-import { AccuracyTrendChart, SessionsBarChart } from '../components/Charts'
+import {
+  AccuracyTrendChart,
+  HitsMissesChart,
+  MissesByGestureChart,
+  SessionsBarChart,
+} from '../components/Charts'
 import { listSessions } from '../api/sessions'
+import {
+  filterSessionsByWeeks,
+  getMissInsights,
+  getWeeklyOutcomes,
+} from '../data/report'
 import {
   formatDays,
   getWeeklySummary,
@@ -13,6 +25,7 @@ import {
 import './../styles/history.css'
 
 export default function History() {
+  const navigate = useNavigate()
   const [sessions, setSessions] = useState(null)
   const [error, setError] = useState('')
 
@@ -35,6 +48,9 @@ export default function History() {
   const accuracyTrend = useMemo(() => getAccuracyTrend(rows), [rows])
   const sessionsPerWeek = useMemo(() => getSessionsPerWeek(rows), [rows])
   const sessionHistory = useMemo(() => getSessionHistory(rows), [rows])
+  const recentWeeks = useMemo(() => filterSessionsByWeeks(rows, 7), [rows])
+  const missInsights = useMemo(() => getMissInsights(recentWeeks), [recentWeeks])
+  const weeklyOutcomes = useMemo(() => getWeeklyOutcomes(recentWeeks), [recentWeeks])
 
   const remaining = Math.max(0, weeklySummary.sessionsGoal - weeklySummary.sessionsCompleted)
   const changeCaption = weeklySummary.accuracyChange >= 0
@@ -48,6 +64,11 @@ export default function History() {
         <p className="history-sub">
           Look how far you&rsquo;ve come &mdash; every session counts.
         </p>
+        <div className="history-hero-actions">
+          <Button fullWidth={false} variant="ghost" onClick={() => navigate('/report')}>
+            View printable report
+          </Button>
+        </div>
       </section>
 
       {error && (
@@ -81,6 +102,41 @@ export default function History() {
             <div className="history-chart-card">
               <h2 className="history-chart-title">Sessions per week</h2>
               <SessionsBarChart data={sessionsPerWeek} />
+            </div>
+          </section>
+
+          <section className="history-charts" aria-label="Missed gesture charts">
+            <div className="history-chart-card">
+              <div className="history-chart-head">
+                <h2 className="history-chart-title">Misses by gesture</h2>
+                {missInsights.totalAttempts > 0 && (
+                  <span className="history-chart-badge">{missInsights.totalMisses} attributed</span>
+                )}
+              </div>
+              <MissesByGestureChart data={missInsights.gestures} />
+              <p className="history-chart-caption">
+                Last 7 weeks. Per-gesture misses appear for sessions saved with grip detail.
+                {missInsights.mostMissed
+                  ? ` ${missInsights.mostMissed.label} accounts for ${missInsights.mostMissed.missShare}% of missed notes.`
+                  : ''}
+              </p>
+            </div>
+            <div className="history-chart-card">
+              <h2 className="history-chart-title">Hits vs misses</h2>
+              <div className="chart-legend">
+                <span className="chart-legend-item">
+                  <span className="chart-legend-swatch chart-legend-swatch--hits" aria-hidden="true" />
+                  Hits
+                </span>
+                <span className="chart-legend-item">
+                  <span className="chart-legend-swatch chart-legend-swatch--misses" aria-hidden="true" />
+                  Misses
+                </span>
+              </div>
+              <HitsMissesChart data={weeklyOutcomes} />
+              <p className="history-chart-caption">
+                Each bar counts every resolved note in that week.
+              </p>
             </div>
           </section>
 

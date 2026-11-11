@@ -11,6 +11,7 @@ const links = [
   { to: '/guide', label: 'User Guide' },
   { to: '/instructions', label: 'How to Play' },
   { to: '/history', label: 'History' },
+  { to: '/report', label: 'Report' },
   { to: '/account', label: 'Account' },
 ]
 

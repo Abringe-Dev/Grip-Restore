@@ -88,6 +88,17 @@ test('schedule starts after the lead-in and never repeats a gesture', () => {
   }
 })
 
+test('schedule leaves room for every note miss window to close', () => {
+  for (const difficulty of DIFFICULTIES) {
+    const durationMs = 30000
+    const notes = createNoteSchedule({ difficulty: difficulty.key, durationMs, rng: FIXED_RNG })
+    const last = notes[notes.length - 1]
+
+    assert.ok(notes.length > 0)
+    assert.ok(last.hitAtMs + difficulty.hitWindowMs <= durationMs)
+  }
+})
+
 test('schedule is empty when the session is shorter than the lead-in', () => {
   assert.deepEqual(createNoteSchedule({ difficulty: 'easy', durationMs: 100, rng: FIXED_RNG }), [])
 })

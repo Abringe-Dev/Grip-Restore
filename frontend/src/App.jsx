@@ -21,6 +21,7 @@ import WeeklyPlan from './pages/WeeklyPlan'
 import UserGuide from './pages/UserGuide'
 import Instructions from './pages/Instructions'
 import History from './pages/History'
+import Report from './pages/Report'
 import Account from './pages/Account'
 
 function AnimatedRoutes() {
@@ -161,6 +162,14 @@ function AnimatedRoutes() {
             element={
               <PageTransition>
                 <History />
+              </PageTransition>
+            }
+          />
+          <Route
+            path="report"
+            element={
+              <PageTransition>
+                <Report />
               </PageTransition>
             }
           />
