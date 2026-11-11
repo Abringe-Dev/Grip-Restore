@@ -5,6 +5,7 @@ import RequireAuth from './components/RequireAuth'
 import AppLayout from './layouts/AppLayout'
 import { WebcamProvider } from './context/WebcamProvider'
 import { HandTrackingProvider } from './context/HandTrackingProvider'
+import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
@@ -17,6 +18,7 @@ import Calibration from './pages/Calibration'
 import Gameplace from './pages/Gameplace'
 import Practice from './pages/Practice'
 import WeeklyPlan from './pages/WeeklyPlan'
+import UserGuide from './pages/UserGuide'
 import Instructions from './pages/Instructions'
 import History from './pages/History'
 import Account from './pages/Account'
@@ -27,7 +29,14 @@ function AnimatedRoutes() {
   return (
     <AnimatePresence mode="wait" initial={false}>
       <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route
+          path="/"
+          element={
+            <PageTransition>
+              <Landing />
+            </PageTransition>
+          }
+        />
         <Route
           path="/login"
           element={
@@ -69,7 +78,6 @@ function AnimatedRoutes() {
           }
         />
         <Route
-          path="/"
           element={
             <RequireAuth>
               <AppLayout />
@@ -133,6 +141,14 @@ function AnimatedRoutes() {
             }
           />
           <Route
+            path="guide"
+            element={
+              <PageTransition>
+                <UserGuide />
+              </PageTransition>
+            }
+          />
+          <Route
             path="instructions"
             element={
               <PageTransition>
@@ -157,7 +173,7 @@ function AnimatedRoutes() {
             }
           />
         </Route>
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AnimatePresence>
   )

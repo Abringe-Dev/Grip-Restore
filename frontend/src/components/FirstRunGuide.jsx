@@ -28,7 +28,7 @@ export default function FirstRunGuide() {
 
   const openFullGuide = () => {
     dismiss()
-    navigate('/instructions')
+    navigate('/guide')
   }
 
   const handleBackdrop = (event) => {
@@ -71,7 +71,7 @@ export default function FirstRunGuide() {
         <footer className="guide-dialog-actions">
           <Button fullWidth={false} onClick={dismiss}>Got it, let&rsquo;s go</Button>
           <Button fullWidth={false} variant="ghost" onClick={openFullGuide}>
-            Read the full guide
+            See the user guide
           </Button>
         </footer>
       </div>

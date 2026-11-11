@@ -25,7 +25,7 @@ export default function Instructions() {
             Start a session
           </Button>
           <Button fullWidth={false} variant="ghost" onClick={() => navigate('/practice')}>
-            Practise a grip
+            Practice a grip
           </Button>
         </div>
       </section>

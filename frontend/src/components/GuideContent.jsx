@@ -12,7 +12,7 @@ export default function GuideContent({ compact = false }) {
       <section className="guide-section">
         <h2 className="guide-section-title">1. Get camera-ready</h2>
         <p>
-          Grip Restore uses your webcam to recognise hand shapes. Allow camera
+          Grip Restore uses your webcam to recognize hand shapes. Allow camera
           access when your browser asks, and keep your hand in frame with your
           palm facing the camera.
         </p>
@@ -52,7 +52,7 @@ export default function GuideContent({ compact = false }) {
       </section>
 
       <section className="guide-section">
-        <h2 className="guide-section-title">4. Practise one grip at a time</h2>
+        <h2 className="guide-section-title">4. Practice one grip at a time</h2>
         <p>
           Practice Mode lets you focus on Pinch, Fist, or Open Palm. Hold the
           chosen grip for two seconds to score a success. Releasing early or
