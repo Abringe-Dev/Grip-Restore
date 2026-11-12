@@ -4,10 +4,10 @@ A web-based rehabilitation game for stroke survivors and arthritis patients. Gri
 
 ## Features
 
-- **Real accounts** — register, log in, log out, and email verification (required before login)
-- **Password recovery** — single-use, time-limited reset links; resetting signs out every session
+- **Real accounts** — register, log in, and log out; email verification is required by default and can be disabled for the public demo
+- **Password recovery** — single-use, time-limited reset links when SMTP is configured; resetting signs out every session
 - **Account settings** — change your password (signs out other devices) or sign out everywhere
-- **Server-side sessions** — httpOnly cookie sessions backed by SQLite, so accounts and progress survive browser resets and work across devices
+- **Server-side sessions** — httpOnly cookie sessions backed by Turso/libSQL in production and a local SQLite file in development, so accounts and progress survive browser resets and work across devices
 - **Dashboard** — weekly summary, next-session forecast, and one-click focused practice for each grip
 - **Start Session** — pick a 5 or 10 minute session and an Easy, Medium, or Hard difficulty; the difficulty is suggested from your recent accuracy
 - **Webcam Setup** — requests camera permission and shows a live, mirrored preview
@@ -24,7 +24,7 @@ A web-based rehabilitation game for stroke survivors and arthritis patients. Gri
 
 **Frontend:** React 19 + Vite, react-router-dom 7, motion, MediaPipe Tasks Vision 1.1.0 (pinned), hand-rolled CSS tokens.
 
-**Backend:** Node.js 24 (built-in `node:sqlite`), Express 5, zod, helmet, express-rate-limit, nodemailer.
+**Backend:** Node.js 24, Express 5, `@libsql/client` (Turso/libSQL), zod, helmet, express-rate-limit, nodemailer.
 
 Password hashing uses `scrypt` (N=2^15, r=8, p=1) with a 16-byte salt, a 64-byte key, and an HMAC pepper. Session and recovery tokens are stored as SHA-256 hashes only.
 
@@ -35,7 +35,7 @@ Grip_Restore/
 ├─ backend/
 │  ├─ src/
 │  │  ├─ auth/           # passwords, tokens, sessions, middleware
-│  │  ├─ db/             # SQLite open + migrations
+│  │  ├─ db/             # libSQL/Turso client + migrations
 │  │  ├─ http/           # cookie helpers
 │  │  ├─ middleware/     # CSRF, rate limits, validation
 │  │  ├─ routes/         # /auth, /api/sessions, /api/practice
@@ -63,7 +63,7 @@ Grip_Restore/
 
 ## Prerequisites
 
-- **Node.js 24+** — the backend uses the built-in `node:sqlite` module.
+- **Node.js 24+**
 - A webcam and a browser with `getUserMedia` support.
 
 ## Getting started
@@ -88,7 +88,7 @@ Open `http://localhost:5173`.
 
 ### Email in development
 
-With no SMTP configured, verification and reset emails are printed to the API console, including a clickable link. The API response also includes `devVerifyUrl` / `devResetUrl` in development so the UI can offer a direct "Open link (dev)" shortcut. Configure SMTP in `backend/.env` to send real mail.
+With no SMTP configured, verification and reset emails are printed to the API console, including a clickable link. The API response also includes `devVerifyUrl` / `devResetUrl` in development so the UI can offer a direct "Open link (dev)" shortcut. With `AUTH_REQUIRE_EMAIL_VERIFICATION=false`, accounts are marked verified at registration and verification endpoints are no-ops. Configure SMTP in `backend/.env` to send real mail.
 
 ### Environment variables
 
@@ -98,7 +98,11 @@ With no SMTP configured, verification and reset emails are printed to the API co
 | `PORT` | `3001` | API port |
 | `APP_URL` | `http://localhost:5173` | Base URL used in email links |
 | `APP_ORIGIN` | `http://localhost:5173`–`5175`, `5199` (development) | Comma-separated CSRF allowlist; production falls back to `APP_URL` |
-| `DATABASE_PATH` | `backend/data/grip-restore.db` | Relative to `backend/` (gitignored) |
+| `DATABASE_PATH` | `backend/data/grip-restore.db` | Local SQLite file for development/tests; relative to `backend/` (gitignored) |
+| `TURSO_DATABASE_URL` | unset | libSQL/Turso URL; **required in production** |
+| `TURSO_AUTH_TOKEN` | unset | Auth token paired with `TURSO_DATABASE_URL` |
+| `AUTO_MIGRATE` | `true` in development, `false` in production | Set `1` to apply migrations on startup |
+| `AUTH_REQUIRE_EMAIL_VERIFICATION` | `true` | Set `false` for the public demo to allow immediate login |
 | `PASSWORD_PEPPER` | dev-only fallback | **Required in production**; changing it invalidates all passwords |
 | `TRUST_PROXY` | `0` | Set `1` behind a reverse proxy so rate limits see the real client IP |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` | unset / `587` / `false` | Any one of nodemailer's supported hosts |
@@ -107,9 +111,9 @@ With no SMTP configured, verification and reset emails are printed to the API co
 
 ### Deploying to Vercel
 
-The root `vercel.json` deploys both halves as one Vercel project using Services: the Vite frontend at `/` and the Express API at `/auth`, `/api`, and `/health`. The backend is pinned to Node.js 24 because it uses `node:sqlite`.
+The root `vercel.json` deploys both halves as one Vercel project using Services: the Vite frontend at `/` and the Express API at `/auth`, `/api`, and `/health`. The backend is pinned to Node.js 24.
 
-Set these API environment variables in the Vercel dashboard before deploying:
+Create a Turso database, then set these API environment variables in the Vercel dashboard before deploying:
 
 | Variable | Value |
 | --- | --- |
@@ -118,12 +122,21 @@ Set these API environment variables in the Vercel dashboard before deploying:
 | `APP_URL` | `https://<deployment-domain>` |
 | `APP_ORIGIN` | `https://<deployment-domain>` |
 | `TRUST_PROXY` | `1` |
-| `DATABASE_PATH` | `/tmp/grip-restore.db` |
-| `SMTP_*` | Optional, to send real verification/reset email |
+| `TURSO_DATABASE_URL` | `libsql://<database>-<org>.turso.io` |
+| `TURSO_AUTH_TOKEN` | Token for that database |
+| `AUTH_REQUIRE_EMAIL_VERIFICATION` | `false` for the public demo; omit or `true` to require email verification |
+| `SMTP_*` | Optional; required for password-reset email |
 
-Leave `VITE_API_BASE` unset so the frontend keeps using same-origin requests.
+Leave `VITE_API_BASE` unset so the frontend keeps using same-origin requests, and leave `AUTO_MIGRATE` unset so production schema changes only happen when you run the migration command.
 
-This is a demo deployment. SQLite lives in `/tmp`, so accounts and sessions are lost when a function instance is recycled and are not shared across instances. Preview deployment origins must also be added to `APP_ORIGIN` for authenticated requests. Use a persistent database before treating this deployment as production.
+Apply migrations locally before deploying:
+
+```bash
+cp backend/.env.example backend/.env   # fill in the Turso URL and token
+npm --prefix backend run db:migrate
+```
+
+Accounts, sessions, and practice/session history are stored in Turso and survive function recycling and redeploys. Preview deployment origins must also be added to `APP_ORIGIN` for authenticated requests.
 
 ### Troubleshooting
 
@@ -146,22 +159,23 @@ This is a demo deployment. SQLite lives in `/tmp`, so accounts and sessions are 
 | `npm test` | Backend API tests, then frontend pure-module tests |
 | `npm run lint` | ESLint on the frontend |
 | `npm run build` | Production frontend build |
+| `npm --prefix backend run db:migrate` | Apply pending migrations to the configured database |
 | `npm run install:all` | Install root, backend, and frontend dependencies |
 
 ## API
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| `POST` | `/auth/register` | — | Create an unverified account; returns a generic message (+ dev link) |
-| `POST` | `/auth/login` | — | Start a session; `403 EMAIL_NOT_VERIFIED` until verified |
+| `POST` | `/auth/register` | — | Create an account; unverified unless the demo flag disables verification |
+| `POST` | `/auth/login` | — | Start a session; `403 EMAIL_NOT_VERIFIED` until verified unless demo mode is on |
 | `POST` | `/auth/logout` | cookie | Revoke the current session |
 | `POST` | `/auth/logout-all` | cookie | Revoke every session for the account |
 | `POST` | `/auth/change-password` | cookie | Verify the current password, set a new one, revoke other sessions |
 | `GET` | `/auth/me` | cookie | Current user |
-| `POST` | `/auth/forgot-password` | — | Email a reset link (always a generic response) |
+| `POST` | `/auth/forgot-password` | — | Email a reset link when SMTP is configured (always a generic response) |
 | `POST` | `/auth/reset-password` | — | Set a new password; revokes all sessions |
-| `POST` | `/auth/verify-email` | — | Consume a verification token |
-| `POST` | `/auth/resend-verification` | — | Issue a new verification token (invalidates the old one) |
+| `POST` | `/auth/verify-email` | — | Consume a verification token; no-op when the demo flag is off |
+| `POST` | `/auth/resend-verification` | — | Issue a new verification token, invalidating the old one; no-op in demo mode |
 | `GET` | `/api/sessions` | cookie | The signed-in user's sessions, newest first, including `gestureStats` |
 | `POST` | `/api/sessions` | cookie | Save a completed session with optional `gestureStats` (accuracy recomputed server-side) |
 | `GET` | `/api/practice` | cookie | Per-gesture practice attempts, accuracy, and streaks (zero-filled for all three grips) |
@@ -194,12 +208,12 @@ A single `MediaStream` lives in `WebcamProvider`, above the keyed `<Routes>`, an
 npm test
 ```
 
-- Backend (`backend/test/`): registration + verification, login/lockout, password reset + session revocation, per-user session and practice isolation, validation, and security headers. 28 tests.
-- Frontend: gameplay engine, per-gesture stats, progress derivations, forecast rules, practice state machine, guide storage, and recommendation logic. 38 tests.
+- Backend (`backend/test/`): registration + demo verification, login/lockout, password reset + session revocation, restart persistence, migrations, per-user session and practice isolation, validation, and security headers. 32 tests.
+- Frontend: gameplay engine, per-gesture stats, progress derivations, report/history logic, forecast rules, practice state machine, guide storage, and recommendation logic. 50 tests.
 
 ## Known limitations
 
-- Email delivery is console-only until SMTP is configured.
+- Email delivery is console-only in development. The public demo disables verification; password reset requires SMTP.
 - Rate-limit and lockout counters live in memory, so they reset when the API restarts (single-instance deployments only).
 - Leaving `/game` through the Navbar or browser Back does not save partial progress; only **Quit session** does.
 - Refreshing `/game` loses duration/difficulty/calibration route state and restarts with defaults.
@@ -208,4 +222,3 @@ npm test
 - Forecasts are guidance, not medical predictions; confidence rises with more saved sessions.
 - The first-run guide is remembered per browser profile, not across devices.
 - Per-gesture session stats are empty for sessions saved before this revision.
-- `node:sqlite` is still flagged experimental in Node 24 (warnings are suppressed in the npm scripts).

@@ -32,54 +32,65 @@ export function createSessionsRouter({ db, requireAuth }) {
   const router = Router()
   router.use(requireAuth)
 
-  router.get('/', (req, res) => {
-    const rows = db
-      .prepare('SELECT * FROM game_sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1000')
-      .all(req.user.id)
-    res.json(rows.map(mapSessionRow))
+  router.get('/', async (req, res, next) => {
+    try {
+      const rows = await db
+        .prepare(
+          'SELECT * FROM game_sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1000',
+        )
+        .all(req.user.id)
+      res.json(rows.map(mapSessionRow))
+    } catch (err) {
+      next(err)
+    }
   })
 
-  router.post('/', validate(createSessionSchema), (req, res) => {
-    const {
-      durationMin,
-      difficulty,
-      hits,
-      misses,
-      gesture,
-      gestures,
-      gestureStats,
-      calibration,
-    } = req.valid
-    const hitCount = hits == null ? null : hits
-    const missCount = misses == null ? null : misses
-    const attempted = (hitCount ?? 0) + (missCount ?? 0)
-    // Never trust a client-computed accuracy; derive it from the counters.
-    const accuracy = attempted > 0 ? Math.round(((hitCount ?? 0) * 100) / attempted) : 0
+  router.post('/', validate(createSessionSchema), async (req, res, next) => {
+    try {
+      const {
+        durationMin,
+        difficulty,
+        hits,
+        misses,
+        gesture,
+        gestures,
+        gestureStats,
+        calibration,
+      } = req.valid
+      const hitCount = hits == null ? null : hits
+      const missCount = misses == null ? null : misses
+      const attempted = (hitCount ?? 0) + (missCount ?? 0)
+      const accuracy = attempted > 0 ? Math.round(((hitCount ?? 0) * 100) / attempted) : 0
 
-    const id = newId()
-    const createdAt = new Date().toISOString()
-    db.prepare(
-      `INSERT INTO game_sessions
-        (id, user_id, duration_min, difficulty, hits, misses, accuracy, gesture, gestures,
-         gesture_stats, calibration, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      id,
-      req.user.id,
-      durationMin,
-      difficulty ?? '',
-      hitCount,
-      missCount,
-      accuracy,
-      String(gesture ?? 'Mixed'),
-      JSON.stringify(Array.isArray(gestures) ? gestures : []),
-      JSON.stringify(gestureStats ?? {}),
-      calibration == null ? null : JSON.stringify(calibration),
-      createdAt,
-    )
+      const id = newId()
+      const createdAt = new Date().toISOString()
+      await db
+        .prepare(
+          `INSERT INTO game_sessions
+            (id, user_id, duration_min, difficulty, hits, misses, accuracy, gesture, gestures,
+             gesture_stats, calibration, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          id,
+          req.user.id,
+          durationMin,
+          difficulty ?? '',
+          hitCount,
+          missCount,
+          accuracy,
+          String(gesture ?? 'Mixed'),
+          JSON.stringify(Array.isArray(gestures) ? gestures : []),
+          JSON.stringify(gestureStats ?? {}),
+          calibration == null ? null : JSON.stringify(calibration),
+          createdAt,
+        )
 
-    const row = db.prepare('SELECT * FROM game_sessions WHERE id = ?').get(id)
-    res.status(201).json(mapSessionRow(row))
+      const row = await db.prepare('SELECT * FROM game_sessions WHERE id = ?').get(id)
+      res.status(201).json(mapSessionRow(row))
+    } catch (err) {
+      next(err)
+    }
   })
 
   return router

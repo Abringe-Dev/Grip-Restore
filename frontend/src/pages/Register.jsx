@@ -71,13 +71,20 @@ export default function Register() {
   }
 
   if (registered) {
+    const needsVerification = registered.verificationRequired !== false
     return (
       <AuthLayout
         title="Grip Restore"
-        eyebrow="Almost there!"
-        subtitle="One quick step to keep your account safe."
+        eyebrow={needsVerification ? 'Almost there!' : 'Account created'}
+        subtitle={
+          needsVerification
+            ? 'One quick step to keep your account safe.'
+            : 'Your demo account is ready to use.'
+        }
       >
-        <h2 className="auth-card-title">Check your email</h2>
+        <h2 className="auth-card-title">
+          {needsVerification ? 'Check your email' : 'You can log in now'}
+        </h2>
         <div className="auth-notice" role="status">
           <p>{registered.message}</p>
           {registered.devVerifyUrl && (
@@ -89,7 +96,8 @@ export default function Register() {
           )}
         </div>
         <p className="auth-switch">
-          Already verified? <Link to="/login">Log in</Link>
+          {needsVerification ? 'Already verified?' : 'Ready to start?'}{' '}
+          <Link to="/login">Log in</Link>
         </p>
       </AuthLayout>
     )

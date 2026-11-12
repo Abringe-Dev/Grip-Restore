@@ -8,11 +8,16 @@ export async function startTestServer({ env = {}, configure } = {}) {
     PASSWORD_PEPPER: 'test-pepper-not-for-production',
     APP_ORIGIN: 'http://localhost:5173',
     APP_URL: 'http://localhost:5173',
+    DATABASE_PATH: ':memory:',
     ...env,
   })
   if (configure) configure(config)
 
-  const db = openDatabase(env.DATABASE_PATH ?? ':memory:')
+  const db = await openDatabase({
+    url: config.databaseUrl,
+    authToken: config.databaseAuthToken,
+    runMigrations: true,
+  })
   const app = createApp({ db, config })
   const server = app.listen(0)
   await new Promise((resolve) => server.once('listening', resolve))
@@ -47,17 +52,14 @@ export async function startTestServer({ env = {}, configure } = {}) {
     server,
     base,
     request,
-    close: () =>
-      new Promise((resolve) => {
-        server.close(() => {
-          try {
-            db.close()
-          } catch {
-            /* already closed */
-          }
-          resolve()
-        })
-      }),
+    close: async () => {
+      await new Promise((resolve) => server.close(resolve))
+      try {
+        db.close()
+      } catch {
+        /* already closed */
+      }
+    },
   }
 }
 

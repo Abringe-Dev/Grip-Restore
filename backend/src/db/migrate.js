@@ -1,5 +1,5 @@
-// Numbered migrations applied inside a transaction and tracked with
-// PRAGMA user_version. Append new entries; never edit an applied migration.
+// Numbered migrations applied inside a transaction and tracked in
+// _schema_version. Append new entries; never edit an applied migration.
 const MIGRATIONS = [
   {
     version: 1,
@@ -64,8 +64,6 @@ const MIGRATIONS = [
   },
   {
     version: 2,
-    // Per-gesture outcomes let the weekly plan focus on the grips that
-    // actually need practice, while legacy rows simply read as {}.
     sql: `
       ALTER TABLE game_sessions
         ADD COLUMN gesture_stats TEXT NOT NULL DEFAULT '{}';
@@ -73,8 +71,6 @@ const MIGRATIONS = [
   },
   {
     version: 3,
-    // One row per user/gesture; counts and streaks survive reloads so the
-    // practice screen can celebrate progress without trusting client state.
     sql: `
       CREATE TABLE practice_progress (
         user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -90,19 +86,80 @@ const MIGRATIONS = [
   },
 ]
 
-export function migrate(db) {
-  const current = Number(db.prepare('PRAGMA user_version').get().user_version) || 0
+const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version
+
+async function currentVersion(db) {
+  const tracker = await db.prepare('SELECT version FROM _schema_version WHERE id = 1').get()
+  let current = Number(tracker?.version) || 0
+  if (current > 0) return current
+
+  try {
+    const legacy = await db.prepare('PRAGMA user_version').get()
+    const legacyVersion = Number(legacy?.user_version) || 0
+    if (legacyVersion > 0) {
+      current = Math.min(legacyVersion, LATEST_VERSION)
+      await db
+        .prepare('UPDATE _schema_version SET version = ? WHERE id = 1')
+        .run(current)
+    }
+  } catch {
+    /* Turso exposes user_version as read-only; a fresh database has no legacy version. */
+  }
+
+  return current
+}
+
+export async function migrate(db) {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS _schema_version (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      version INTEGER NOT NULL
+    );
+  `)
+  await db.execute('INSERT OR IGNORE INTO _schema_version (id, version) VALUES (1, 0)')
+
+  let current = await currentVersion(db)
   for (const migration of MIGRATIONS) {
     if (migration.version <= current) continue
-    db.exec('BEGIN')
+
+    const tx = await db.raw.transaction('write')
     try {
-      db.exec(migration.sql)
-      db.exec(`PRAGMA user_version = ${migration.version}`)
-      db.exec('COMMIT')
+      const versionRow = await tx.execute({
+        sql: 'SELECT version FROM _schema_version WHERE id = 1',
+        args: [],
+      })
+      const latest = Number(versionRow.rows[0]?.version) || 0
+      if (latest >= migration.version) {
+        current = latest
+        await tx.commit()
+        continue
+      }
+
+      await tx.executeMultiple(migration.sql)
+      await tx.execute({
+        sql: 'UPDATE _schema_version SET version = ? WHERE id = 1',
+        args: [migration.version],
+      })
+      if (db.isLocal) {
+        try {
+          await tx.execute(`PRAGMA user_version = ${migration.version}`)
+        } catch {
+          /* rollback compatibility only; Turso exposes user_version as read-only */
+        }
+      }
+      await tx.commit()
+      current = migration.version
     } catch (err) {
-      db.exec('ROLLBACK')
+      try {
+        await tx.rollback()
+      } catch {
+        /* already rolled back */
+      }
       throw err
+    } finally {
+      tx.close()
     }
   }
-  return MIGRATIONS[MIGRATIONS.length - 1].version
+
+  return current
 }

@@ -21,23 +21,27 @@ import {
 import { resetUrl, sendMail, verificationUrl } from '../mailer.js'
 import { transaction } from '../db/index.js'
 
-function issueVerificationToken(db, userId, config) {
-  db.prepare('DELETE FROM email_verification_tokens WHERE user_id = ?').run(userId)
+async function issueVerificationToken(db, userId, config) {
+  await db.prepare('DELETE FROM email_verification_tokens WHERE user_id = ?').run(userId)
   const { token, hash } = createToken()
-  db.prepare(
-    `INSERT INTO email_verification_tokens (id, user_id, token_hash, expires_at, created_at)
-     VALUES (?, ?, ?, ?, ?)`,
-  ).run(newId(), userId, hash, addHours(config.verificationTtlHours), new Date().toISOString())
+  await db
+    .prepare(
+      `INSERT INTO email_verification_tokens (id, user_id, token_hash, expires_at, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+    .run(newId(), userId, hash, addHours(config.verificationTtlHours), new Date().toISOString())
   return token
 }
 
-function issueResetToken(db, userId, config) {
-  db.prepare('DELETE FROM password_reset_tokens WHERE user_id = ?').run(userId)
+async function issueResetToken(db, userId, config) {
+  await db.prepare('DELETE FROM password_reset_tokens WHERE user_id = ?').run(userId)
   const { token, hash } = createToken()
-  db.prepare(
-    `INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at, created_at)
-     VALUES (?, ?, ?, ?, ?)`,
-  ).run(newId(), userId, hash, addMinutes(config.resetTtlMinutes), new Date().toISOString())
+  await db
+    .prepare(
+      `INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+    .run(newId(), userId, hash, addMinutes(config.resetTtlMinutes), new Date().toISOString())
   return token
 }
 
@@ -79,39 +83,55 @@ export function createAuthRouter({ db, config, limits }) {
       }
 
       const normalized = normalizeEmail(email)
-      const existing = db.prepare('SELECT * FROM users WHERE email = ?').get(normalized)
-      const passwordHash = await hashPassword(password, config.pepper)
-      const now = new Date().toISOString()
-
+      const existing = await db.prepare('SELECT * FROM users WHERE email = ?').get(normalized)
       if (existing && existing.email_verified_at) {
         res.status(409).json({ error: 'Unable to create an account with these details.' })
         return
       }
 
+      const passwordHash = await hashPassword(password, config.pepper)
+      const now = new Date().toISOString()
+      const verifiedAt = config.requireEmailVerification ? null : now
+
       let user
       if (existing) {
-        // Unverified accounts may retry registration; this refreshes the
-        // password but still requires proving control of the mailbox.
-        db.prepare(
-          `UPDATE users
-           SET name = ?, password_hash = ?, updated_at = ?, failed_login_count = 0, locked_until = NULL
-           WHERE id = ?`,
-        ).run(name, passwordHash, now, existing.id)
-        user = db.prepare('SELECT * FROM users WHERE id = ?').get(existing.id)
+        await db
+          .prepare(
+            `UPDATE users
+             SET name = ?, password_hash = ?, email_verified_at = ?, updated_at = ?,
+                 failed_login_count = 0, locked_until = NULL
+             WHERE id = ?`,
+          )
+          .run(name, passwordHash, verifiedAt, now, existing.id)
+        user = await db.prepare('SELECT * FROM users WHERE id = ?').get(existing.id)
       } else {
         const id = newId()
-        db.prepare(
-          `INSERT INTO users (id, email, name, password_hash, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-        ).run(id, normalized, name, passwordHash, now, now)
-        user = db.prepare('SELECT * FROM users WHERE id = ?').get(id)
+        await db
+          .prepare(
+            `INSERT INTO users
+              (id, email, name, password_hash, email_verified_at, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .run(id, normalized, name, passwordHash, verifiedAt, now, now)
+        user = await db.prepare('SELECT * FROM users WHERE id = ?').get(id)
       }
 
-      const token = issueVerificationToken(db, user.id, config)
+      if (!config.requireEmailVerification) {
+        res.status(201).json({
+          message: 'Account created. You can log in now.',
+          verificationRequired: false,
+        })
+        return
+      }
+
+      const token = await issueVerificationToken(db, user.id, config)
       const url = verificationUrl(config, token)
       await deliver(config, verificationBody(config, user, url))
 
-      const body = { message: 'Check your email to verify your account.' }
+      const body = {
+        message: 'Check your email to verify your account.',
+        verificationRequired: true,
+      }
       if (!config.isProd) body.devVerifyUrl = url
       res.status(201).json(body)
     } catch (err) {
@@ -122,7 +142,9 @@ export function createAuthRouter({ db, config, limits }) {
   router.post('/login', limits.login, validate(loginSchema), async (req, res, next) => {
     try {
       const { email, password } = req.valid
-      const user = db.prepare('SELECT * FROM users WHERE email = ?').get(normalizeEmail(email))
+      const user = await db
+        .prepare('SELECT * FROM users WHERE email = ?')
+        .get(normalizeEmail(email))
 
       if (user && user.locked_until && !isExpired(user.locked_until)) {
         res.status(429).json({ error: 'Too many attempts. Please try again later.' })
@@ -137,21 +159,20 @@ export function createAuthRouter({ db, config, limits }) {
         if (user) {
           const failures = user.failed_login_count + 1
           if (failures >= config.lockout.maxFailures) {
-            db.prepare(
-              'UPDATE users SET failed_login_count = 0, locked_until = ? WHERE id = ?',
-            ).run(addMinutes(config.lockout.minutes), user.id)
+            await db
+              .prepare('UPDATE users SET failed_login_count = 0, locked_until = ? WHERE id = ?')
+              .run(addMinutes(config.lockout.minutes), user.id)
           } else {
-            db.prepare('UPDATE users SET failed_login_count = ? WHERE id = ?').run(
-              failures,
-              user.id,
-            )
+            await db
+              .prepare('UPDATE users SET failed_login_count = ? WHERE id = ?')
+              .run(failures, user.id)
           }
         }
         res.status(401).json({ error: 'Invalid email or password.' })
         return
       }
 
-      if (!user.email_verified_at) {
+      if (config.requireEmailVerification && !user.email_verified_at) {
         res.status(403).json({
           error: 'Please verify your email address before logging in.',
           code: 'EMAIL_NOT_VERIFIED',
@@ -159,11 +180,19 @@ export function createAuthRouter({ db, config, limits }) {
         return
       }
 
-      db.prepare('UPDATE users SET failed_login_count = 0, locked_until = NULL WHERE id = ?').run(
-        user.id,
-      )
+      if (!config.requireEmailVerification && !user.email_verified_at) {
+        const verifiedAt = new Date().toISOString()
+        await db
+          .prepare('UPDATE users SET email_verified_at = ?, updated_at = ? WHERE id = ?')
+          .run(verifiedAt, verifiedAt, user.id)
+        user.email_verified_at = verifiedAt
+      }
 
-      const { token } = createSession(db, user.id, req.get('user-agent'), config)
+      await db
+        .prepare('UPDATE users SET failed_login_count = 0, locked_until = NULL WHERE id = ?')
+        .run(user.id)
+
+      const { token } = await createSession(db, user.id, req.get('user-agent'), config)
       setSessionCookie(res, config, token, config.sessionTtlDays * 24 * 60 * 60)
       res.json(publicUser(user))
     } catch (err) {
@@ -171,10 +200,14 @@ export function createAuthRouter({ db, config, limits }) {
     }
   })
 
-  router.post('/logout', (req, res) => {
-    revokeSession(db, readSessionToken(req, config))
-    clearSessionCookie(res, config)
-    res.status(204).end()
+  router.post('/logout', async (req, res, next) => {
+    try {
+      await revokeSession(db, readSessionToken(req, config))
+      clearSessionCookie(res, config)
+      res.status(204).end()
+    } catch (err) {
+      next(err)
+    }
   })
 
   router.get('/me', requireAuth(db, config), (req, res) => {
@@ -189,7 +222,7 @@ export function createAuthRouter({ db, config, limits }) {
     async (req, res, next) => {
       try {
         const { currentPassword, newPassword } = req.valid
-        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id)
+        const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id)
 
         const valid = await verifyPassword(currentPassword, user.password_hash, config.pepper)
         if (!valid) {
@@ -212,17 +245,17 @@ export function createAuthRouter({ db, config, limits }) {
 
         const passwordHash = await hashPassword(newPassword, config.pepper)
         const now = new Date().toISOString()
-        transaction(db, () => {
-          db.prepare(
-            `UPDATE users
-             SET password_hash = ?, updated_at = ?, failed_login_count = 0, locked_until = NULL
-             WHERE id = ?`,
-          ).run(passwordHash, now, user.id)
-          // Keep this device signed in; every other session is revoked.
-          db.prepare('DELETE FROM auth_sessions WHERE user_id = ? AND token_hash <> ?').run(
-            user.id,
-            hashToken(req.sessionToken),
-          )
+        await transaction(db, async (tx) => {
+          await tx
+            .prepare(
+              `UPDATE users
+               SET password_hash = ?, updated_at = ?, failed_login_count = 0, locked_until = NULL
+               WHERE id = ?`,
+            )
+            .run(passwordHash, now, user.id)
+          await tx
+            .prepare('DELETE FROM auth_sessions WHERE user_id = ? AND token_hash <> ?')
+            .run(user.id, hashToken(req.sessionToken))
         })
 
         res.json({ message: 'Password updated. Other devices have been signed out.' })
@@ -232,21 +265,27 @@ export function createAuthRouter({ db, config, limits }) {
     },
   )
 
-  router.post('/logout-all', requireAuth(db, config), (req, res) => {
-    revokeAllSessions(db, req.user.id)
-    clearSessionCookie(res, config)
-    res.status(204).end()
+  router.post('/logout-all', requireAuth(db, config), async (req, res, next) => {
+    try {
+      await revokeAllSessions(db, req.user.id)
+      clearSessionCookie(res, config)
+      res.status(204).end()
+    } catch (err) {
+      next(err)
+    }
   })
 
   router.post('/forgot-password', limits.recovery, validate(emailSchema), async (req, res, next) => {
     try {
       const body = { message: 'If an account exists for that email, a reset link has been sent.' }
-      const user = db
+      const user = await db
         .prepare('SELECT * FROM users WHERE email = ?')
         .get(normalizeEmail(req.valid.email))
 
-      if (user && user.email_verified_at) {
-        const token = issueResetToken(db, user.id, config)
+      if (config.isProd && !config.smtp.host) {
+        body.message = 'Password reset is unavailable in this demo. Please log in and change your password.'
+      } else if (user && user.email_verified_at) {
+        const token = await issueResetToken(db, user.id, config)
         const url = resetUrl(config, token)
         await deliver(config, resetBody(config, user, url))
         if (!config.isProd) body.devResetUrl = url
@@ -266,7 +305,7 @@ export function createAuthRouter({ db, config, limits }) {
         return
       }
 
-      const row = db
+      const row = await db
         .prepare('SELECT * FROM password_reset_tokens WHERE token_hash = ? AND used_at IS NULL')
         .get(hashToken(req.valid.token))
 
@@ -278,18 +317,21 @@ export function createAuthRouter({ db, config, limits }) {
       const passwordHash = await hashPassword(req.valid.password, config.pepper)
       const now = new Date().toISOString()
 
-      transaction(db, () => {
-        db.prepare(
-          `UPDATE users
-           SET password_hash = ?, updated_at = ?, failed_login_count = 0, locked_until = NULL
-           WHERE id = ?`,
-        ).run(passwordHash, now, row.user_id)
-        db.prepare('UPDATE password_reset_tokens SET used_at = ? WHERE id = ?').run(now, row.id)
-        db.prepare('DELETE FROM password_reset_tokens WHERE user_id = ? AND id <> ?').run(
-          row.user_id,
-          row.id,
-        )
-        revokeAllSessions(db, row.user_id)
+      await transaction(db, async (tx) => {
+        await tx
+          .prepare(
+            `UPDATE users
+             SET password_hash = ?, updated_at = ?, failed_login_count = 0, locked_until = NULL
+             WHERE id = ?`,
+          )
+          .run(passwordHash, now, row.user_id)
+        await tx
+          .prepare('UPDATE password_reset_tokens SET used_at = ? WHERE id = ?')
+          .run(now, row.id)
+        await tx
+          .prepare('DELETE FROM password_reset_tokens WHERE user_id = ? AND id <> ?')
+          .run(row.user_id, row.id)
+        await revokeAllSessions(tx, row.user_id)
       })
 
       res.json({ message: 'Your password has been reset. You can log in now.' })
@@ -298,9 +340,17 @@ export function createAuthRouter({ db, config, limits }) {
     }
   })
 
-  router.post('/verify-email', validate(verifySchema), (req, res, next) => {
+  router.post('/verify-email', validate(verifySchema), async (req, res, next) => {
     try {
-      const row = db
+      if (!config.requireEmailVerification) {
+        res.json({
+          message: 'Email verification is not required for this demo.',
+          verificationRequired: false,
+        })
+        return
+      }
+
+      const row = await db
         .prepare('SELECT * FROM email_verification_tokens WHERE token_hash = ? AND used_at IS NULL')
         .get(hashToken(req.valid.token))
 
@@ -310,15 +360,18 @@ export function createAuthRouter({ db, config, limits }) {
       }
 
       const now = new Date().toISOString()
-      transaction(db, () => {
-        db.prepare(
-          'UPDATE users SET email_verified_at = COALESCE(email_verified_at, ?), updated_at = ? WHERE id = ?',
-        ).run(now, now, row.user_id)
-        db.prepare('UPDATE email_verification_tokens SET used_at = ? WHERE id = ?').run(now, row.id)
-        db.prepare('DELETE FROM email_verification_tokens WHERE user_id = ? AND id <> ?').run(
-          row.user_id,
-          row.id,
-        )
+      await transaction(db, async (tx) => {
+        await tx
+          .prepare(
+            'UPDATE users SET email_verified_at = COALESCE(email_verified_at, ?), updated_at = ? WHERE id = ?',
+          )
+          .run(now, now, row.user_id)
+        await tx
+          .prepare('UPDATE email_verification_tokens SET used_at = ? WHERE id = ?')
+          .run(now, row.id)
+        await tx
+          .prepare('DELETE FROM email_verification_tokens WHERE user_id = ? AND id <> ?')
+          .run(row.user_id, row.id)
       })
 
       res.json({ message: 'Email verified. You can log in now.' })
@@ -333,13 +386,21 @@ export function createAuthRouter({ db, config, limits }) {
     validate(emailSchema),
     async (req, res, next) => {
       try {
+        if (!config.requireEmailVerification) {
+          res.json({
+            message: 'Email verification is not required for this demo.',
+            verificationRequired: false,
+          })
+          return
+        }
+
         const body = { message: 'If an account needs verification, we have sent a new link.' }
-        const user = db
+        const user = await db
           .prepare('SELECT * FROM users WHERE email = ?')
           .get(normalizeEmail(req.valid.email))
 
         if (user && !user.email_verified_at) {
-          const token = issueVerificationToken(db, user.id, config)
+          const token = await issueVerificationToken(db, user.id, config)
           const url = verificationUrl(config, token)
           await deliver(config, verificationBody(config, user, url))
           if (!config.isProd) body.devVerifyUrl = url

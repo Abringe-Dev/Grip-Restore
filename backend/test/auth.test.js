@@ -39,6 +39,46 @@ test('registration creates an unverified account and blocks login until verified
   assert.equal(ok.data.password_hash, undefined)
 })
 
+test('demo verification skips email delivery and allows immediate login', async (t) => {
+  const ctx = await startTestServer({
+    env: {
+      NODE_ENV: 'production',
+      PASSWORD_PEPPER: 'prod-test-pepper-value',
+      AUTH_REQUIRE_EMAIL_VERIFICATION: 'false',
+    },
+  })
+  t.after(() => ctx.close())
+
+  const registered = await registerUser(ctx, { email: 'demo@example.com' })
+  assert.equal(registered.status, 201)
+  assert.equal(registered.data.verificationRequired, false)
+  assert.equal(registered.data.devVerifyUrl, undefined)
+  assert.match(registered.data.message, /log in/i)
+
+  const loggedIn = await login(ctx, { email: 'demo@example.com' })
+  assert.equal(loggedIn.status, 200)
+  assert.equal(loggedIn.data.emailVerified, true)
+  assert.match(loggedIn.setCookies[0], /^__Host-gr_session=/)
+
+  const me = await ctx.request('/auth/me', { cookie: loggedIn.sessionCookie })
+  assert.equal(me.status, 200)
+  assert.equal(me.data.email, 'demo@example.com')
+
+  const verify = await ctx.request('/auth/verify-email', {
+    method: 'POST',
+    body: { token: 'a'.repeat(43) },
+  })
+  assert.equal(verify.status, 200)
+  assert.equal(verify.data.verificationRequired, false)
+
+  const resend = await ctx.request('/auth/resend-verification', {
+    method: 'POST',
+    body: { email: 'demo@example.com' },
+  })
+  assert.equal(resend.status, 200)
+  assert.equal(resend.data.verificationRequired, false)
+})
+
 test('session cookie is HttpOnly, SameSite=Lax, and usable for /auth/me then logout', async (t) => {
   const ctx = await startTestServer()
   t.after(() => ctx.close())
@@ -138,7 +178,7 @@ test('verification tokens expire and can only be used once', async (t) => {
   const registered = await registerUser(ctx, { email: 'expire@example.com' })
   const token = tokenFromUrl(registered.data.devVerifyUrl)
 
-  ctx.db
+  await ctx.db
     .prepare('UPDATE email_verification_tokens SET expires_at = ? WHERE user_id IS NOT NULL')
     .run(new Date(Date.now() - 60_000).toISOString())
 
@@ -293,7 +333,13 @@ test('logout-all revokes every device', async (t) => {
 test('accounts persist when the API restarts', async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'grip-restore-'))
   const dbPath = path.join(dir, 'test.db')
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+  t.after(() => {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+    } catch (err) {
+      if (err.code !== 'EPERM') throw err
+    }
+  })
 
   const first = await startTestServer({ env: { DATABASE_PATH: dbPath } })
   const user = await createVerifiedUser(first, { email: 'persist@example.com' })

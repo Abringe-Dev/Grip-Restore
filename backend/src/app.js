@@ -49,8 +49,14 @@ export function createApp({ db, config }) {
   app.use(express.json({ limit: '16kb', type: 'application/json' }))
   app.use(csrfGuard(config))
 
-  app.get('/health', (req, res) => {
-    res.json({ ok: true })
+  app.get('/health', async (req, res) => {
+    try {
+      const row = await db.prepare('SELECT version FROM _schema_version WHERE id = 1').get()
+      res.json({ ok: true, db: 'ok', schemaVersion: Number(row?.version) || 0 })
+    } catch (err) {
+      if (!config.isProd) console.error('[health]', err)
+      res.status(503).json({ ok: false, db: 'unavailable' })
+    }
   })
 
   app.use('/auth', createAuthRouter({ db, config, limits }))

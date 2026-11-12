@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { loadConfig } from '../src/config.js'
+import { assertDeployableDatabase, loadConfig } from '../src/config.js'
 import { login, registerUser, startTestServer } from './helpers.js'
 
 test('development trusts Vite fallback ports while production uses APP_URL', () => {
@@ -16,8 +16,22 @@ test('development trusts Vite fallback ports while production uses APP_URL', () 
     NODE_ENV: 'production',
     PASSWORD_PEPPER: 'prod-test-pepper-value',
     APP_URL: 'https://grip.example/',
+    TURSO_DATABASE_URL: ':memory:',
   })
   assert.deepEqual(prod.origins, ['https://grip.example'])
+
+  const localProd = loadConfig({
+    NODE_ENV: 'production',
+    PASSWORD_PEPPER: 'prod-test-pepper-value',
+    APP_URL: 'https://grip.example/',
+    DATABASE_PATH: ':memory:',
+  })
+  assert.throws(() => assertDeployableDatabase(localProd), /remote Turso database/i)
+
+  assert.throws(
+    () => loadConfig({ NODE_ENV: 'production', PASSWORD_PEPPER: 'prod-test-pepper-value' }),
+    /TURSO_DATABASE_URL/,
+  )
 
   const override = loadConfig({
     NODE_ENV: 'development',
@@ -77,7 +91,7 @@ test('production requires an Origin and uses Secure __Host cookies', async (t) =
   assert.equal(user.status, 201)
   assert.equal(user.data.devVerifyUrl, undefined, 'production never returns the link')
 
-  ctx.db
+  await ctx.db
     .prepare('UPDATE users SET email_verified_at = ? WHERE email = ?')
     .run(new Date().toISOString(), 'prod@example.com')
   const loggedIn = await login(ctx, { email: 'prod@example.com' })
@@ -129,13 +143,13 @@ test('SQL injection payloads are treated as literal values', async (t) => {
   const registered = await registerUser(ctx, { email })
   assert.equal(registered.status, 201)
 
-  const stored = ctx.db.prepare('SELECT email FROM users WHERE email = ?').get(email)
+  const stored = await ctx.db.prepare('SELECT email FROM users WHERE email = ?').get(email)
   assert.equal(stored.email, email)
 
   const res = await login(ctx, { email, password: 'anything-1234' })
   assert.equal(res.status, 401)
 
-  const rows = ctx.db.prepare('SELECT COUNT(*) AS count FROM users').get()
+  const rows = await ctx.db.prepare('SELECT COUNT(*) AS count FROM users').get()
   assert.equal(rows.count, 1, 'no injection widened the query')
 })
 
@@ -144,7 +158,9 @@ test('passwords are stored as scrypt hashes, never plaintext', async (t) => {
   t.after(() => ctx.close())
 
   await registerUser(ctx, { email: 'hash@example.com', password: 'hash-me-please-77' })
-  const row = ctx.db.prepare('SELECT password_hash FROM users WHERE email = ?').get('hash@example.com')
+  const row = await ctx.db
+    .prepare('SELECT password_hash FROM users WHERE email = ?')
+    .get('hash@example.com')
   assert.match(row.password_hash, /^scrypt\$32768\$8\$1\$/)
   assert.ok(!row.password_hash.includes('hash-me-please-77'))
 })
